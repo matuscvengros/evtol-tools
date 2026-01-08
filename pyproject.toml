@@ -1,0 +1,49 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "evtol-tools"
+version = "0.1.0"
+requires-python = ">=3.10"
+dependencies = [
+    "pint>=0.23",
+    "numpy>=1.20",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[tool.setuptools]
+packages = ["evtoltools", "evtoltools.common", "evtoltools.common.quantities"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",                           # Verbose output
+    "--tb=short",                   # Shorter traceback format
+    "--strict-markers",             # Strict marker checking
+    "--color=yes",                  # Colored output
+]
+
+[tool.coverage.run]
+source = ["evtoltools"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
+
+[tool.coverage.report]
+precision = 2
+show_missing = true
+skip_covered = false
+
+[tool.coverage.html]
+directory = "htmlcov"
