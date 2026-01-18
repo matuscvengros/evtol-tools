@@ -5,6 +5,8 @@
 .vscode/
 .claude/
 CLAUDE.md
+AGENTS.md
+notebooks/
 
 
 # Test results and coverage reports
