@@ -14,6 +14,6 @@ ureg = UnitRegistry()
 set_application_registry(ureg)
 
 # Convenience alias for Quantity constructor
-Q_ = ureg.Quantity
+Q_ = ureg.Quantity  # type: ignore[type-arg]
 
 __all__ = ['ureg', 'Q_']

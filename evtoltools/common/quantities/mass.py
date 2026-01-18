@@ -4,7 +4,7 @@ This module provides the Mass class for representing and manipulating
 mass/weight values with automatic unit conversion.
 """
 
-from ..base import BaseQuantity
+from evtoltools.common.base import BaseQuantity
 
 
 class Mass(BaseQuantity):

@@ -14,14 +14,44 @@ Examples:
     >>> total = component_masses.magnitude.sum()
 """
 
-from .quantities import Mass
+from evtoltools.common.quantities import (
+    Mass,
+    Length,
+    Time,
+    Temperature,
+    Current,
+    Substance,
+    Luminosity,
+    Velocity,
+    Area,
+    Volume,
+    Force,
+    Power,
+    Density,
+    Moment,
+    AngularVelocity,
+)
 
 # For advanced users who need direct pint access
-from .registry import ureg, Q_
+from evtoltools.common.registry import ureg, Q_
 
 __all__ = [
     # Primary API - quantity classes
     'Mass',
+    'Length',
+    'Time',
+    'Temperature',
+    'Current',
+    'Substance',
+    'Luminosity',
+    'Velocity',
+    'Area',
+    'Volume',
+    'Force',
+    'Power',
+    'Density',
+    'Moment',
+    'AngularVelocity',
 
     # Advanced API - direct pint access
     'ureg',

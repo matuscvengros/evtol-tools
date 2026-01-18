@@ -10,8 +10,8 @@ from typing import Union, Optional, Any
 import numpy as np
 from pint import Quantity as PintQuantity
 
-from .registry import ureg, Q_
-from .config import DEFAULT_UNITS, ALLOWED_UNITS
+from evtoltools.common.registry import ureg, Q_
+from evtoltools.common.config import DEFAULT_UNITS, ALLOWED_UNITS
 
 
 class BaseQuantity(ABC):
@@ -77,14 +77,15 @@ class BaseQuantity(ABC):
     def _validate_dimensionality(self) -> None:
         """Validate that the quantity has the correct dimensionality."""
         if self._dimensionality is not None:
-            # Get expected dimensionality string
-            expected_str = self._dimensionality
-            actual_str = str(self._quantity.dimensionality)
+            # Use pint's dimensionality comparison to handle equivalent dimensions
+            # Different units can have different string representations but same dimensionality
+            expected = ureg.get_dimensionality(self._dimensionality)
+            actual = self._quantity.dimensionality
 
-            if actual_str != expected_str:
+            if actual != expected:
                 raise ValueError(
-                    f"Expected dimensionality {expected_str} for {self._quantity_type}, "
-                    f"got {actual_str}"
+                    f"Expected dimensionality {self._dimensionality} for {self._quantity_type}, "
+                    f"got {actual}"
                 )
 
     def to(self, unit: str) -> 'BaseQuantity':
