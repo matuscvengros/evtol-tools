@@ -26,6 +26,9 @@ DEFAULT_UNITS: Dict[str, str] = {
     'density': 'kg/m^3',
     'area': 'm^2',
     'volume': 'm^3',
+    'voltage': 'V',
+    'energy': 'J',
+    'capacity': 'Ah',
 }
 
 # Allowed alternative units for each quantity type
@@ -47,6 +50,9 @@ ALLOWED_UNITS: Dict[str, list[str]] = {
     'density': ['kg/m^3', 'g/cm^3', 'lb/ft^3'],
     'area': ['m^2', 'cm^2', 'ft^2', 'in^2'],
     'volume': ['m^3', 'L', 'gal', 'ft^3'],
+    'voltage': ['V', 'mV', 'kV'],
+    'energy': ['J', 'kJ', 'MJ', 'Wh', 'kWh', 'mWh'],
+    'capacity': ['Ah', 'mAh', 'C'],
 }
 
 __all__ = ['DEFAULT_UNITS', 'ALLOWED_UNITS']

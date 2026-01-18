@@ -19,6 +19,9 @@ from evtoltools.common.quantities.power import Power
 from evtoltools.common.quantities.density import Density
 from evtoltools.common.quantities.moment import Moment
 from evtoltools.common.quantities.angular_velocity import AngularVelocity
+from evtoltools.common.quantities.voltage import Voltage
+from evtoltools.common.quantities.energy import Energy
+from evtoltools.common.quantities.capacity import Capacity
 
 __all__ = [
     'Mass',
@@ -36,4 +39,7 @@ __all__ = [
     'Density',
     'Moment',
     'AngularVelocity',
+    'Voltage',
+    'Energy',
+    'Capacity',
 ]

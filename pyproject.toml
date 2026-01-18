@@ -9,6 +9,7 @@ requires-python = ">=3.10"
 dependencies = [
     "pint>=0.23",
     "numpy>=1.20",
+    "pybamm>=24.1",
 ]
 
 [project.optional-dependencies]
@@ -18,7 +19,14 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["evtoltools", "evtoltools.common", "evtoltools.common.quantities"]
+packages = [
+    "evtoltools",
+    "evtoltools.common",
+    "evtoltools.common.quantities",
+    "evtoltools.components",
+    "evtoltools.components.battery",
+    "evtoltools.components.propulsion",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

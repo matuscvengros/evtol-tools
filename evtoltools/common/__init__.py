@@ -30,6 +30,9 @@ from evtoltools.common.quantities import (
     Density,
     Moment,
     AngularVelocity,
+    Voltage,
+    Energy,
+    Capacity,
 )
 
 # For advanced users who need direct pint access
@@ -52,6 +55,9 @@ __all__ = [
     'Density',
     'Moment',
     'AngularVelocity',
+    'Voltage',
+    'Energy',
+    'Capacity',
 
     # Advanced API - direct pint access
     'ureg',
