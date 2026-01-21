@@ -227,6 +227,50 @@ class TestBaseComponentInterface:
         assert isinstance(payload, BaseComponent)
 
 
+class TestSINormalization:
+    """Tests for SI unit normalization on component construction."""
+
+    def test_avionics_mass_normalized_to_kg(self):
+        """Avionics mass should be normalized to kg (SI default)."""
+        avionics = Avionics(_mass=Mass(50000, 'g'))  # Input in grams
+        assert avionics.mass.units == 'kilogram'
+        assert abs(avionics.mass.magnitude - 50) < 0.0001
+
+    def test_avionics_mass_from_lbs_normalized(self):
+        """Avionics mass in lbs should be normalized to kg."""
+        avionics = Avionics(_mass=Mass(100, 'lbs'))  # Input in lbs
+        assert avionics.mass.units == 'kilogram'
+        # 100 lbs ≈ 45.36 kg
+        assert abs(avionics.mass.magnitude - 45.36) < 0.1
+
+    def test_structure_mass_normalized_to_kg(self):
+        """Structure mass should be normalized to kg (SI default)."""
+        structure = Structure(_mass=Mass(500000, 'g'))  # Input in grams
+        assert structure.mass.units == 'kilogram'
+        assert abs(structure.mass.magnitude - 500) < 0.0001
+
+    def test_payload_mass_normalized_to_kg(self):
+        """Payload mass should be normalized to kg (SI default)."""
+        payload = Payload(_mass=Mass(200000, 'g'))  # Input in grams
+        assert payload.mass.units == 'kilogram'
+        assert abs(payload.mass.magnitude - 200) < 0.0001
+
+    def test_payload_position_normalized_to_meters(self):
+        """Payload position should be normalized to meters (SI default)."""
+        payload = Payload(
+            _mass=Mass(100, 'kg'),
+            x_position=Length(150, 'cm'),  # Input in cm
+            y_position=Length(2, 'ft'),     # Input in feet
+            z_position=Length(500, 'mm'),   # Input in mm
+        )
+        assert payload.x_position.units == 'meter'
+        assert abs(payload.x_position.magnitude - 1.5) < 0.0001
+        assert payload.y_position.units == 'meter'
+        assert abs(payload.y_position.magnitude - 0.6096) < 0.01
+        assert payload.z_position.units == 'meter'
+        assert abs(payload.z_position.magnitude - 0.5) < 0.0001
+
+
 class TestUnitConversions:
     """Tests for unit handling in components."""
 
@@ -238,7 +282,8 @@ class TestUnitConversions:
     def test_structure_from_lbs_fraction(self):
         empty_weight = Mass(3000, 'lbs')
         structure = Structure.from_weight_fraction(empty_weight, 0.30)
-        assert abs(structure.mass.magnitude - 900) < 0.001
+        # 3000 lbs * 0.30 = 900 lbs = 408.23 kg (normalized to SI)
+        assert abs(structure.mass.in_units_of('lbs') - 900) < 0.001
 
     def test_payload_position_conversion(self):
         payload = Payload(

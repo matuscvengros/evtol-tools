@@ -33,6 +33,13 @@ class Motor:
     max_rpm: Optional[AngularVelocity] = None
 
     def __post_init__(self):
+        # Normalize quantities to SI units
+        object.__setattr__(self, 'max_power', self.max_power.to_default())
+        if self.mass is not None:
+            object.__setattr__(self, 'mass', self.mass.to_default())
+        if self.max_rpm is not None:
+            object.__setattr__(self, 'max_rpm', self.max_rpm.to_default())
+
         if not 0 < self.efficiency <= 1:
             raise ValueError("efficiency must be between 0 and 1")
         if self.max_power.in_units_of('W') <= 0:

@@ -26,6 +26,10 @@ class Avionics(BaseComponent):
 
     _mass: Mass
 
+    def __post_init__(self):
+        """Normalize quantity fields to SI units."""
+        object.__setattr__(self, '_mass', self._mass.to_default())
+
     @property
     def component_type(self) -> str:
         return 'avionics'

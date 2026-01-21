@@ -1,19 +1,39 @@
-"""Tests for Battery chemistry and Battery component."""
+"""Tests for Battery chemistry and Battery component.
 
-import pytest
+This module provides comprehensive tests for battery chemistry configurations
+and the Battery component class, including construction, factory methods,
+voltage/capacity/energy calculations, and current/power limits.
+
+Test Classes:
+    TestBatteryChemistryDefinitions: Tests for predefined battery chemistries.
+    TestBatteryChemistryMethods: Tests for BatteryChemistry methods.
+    TestGetChemistry: Tests for chemistry registry lookup.
+    TestBatteryConstruction: Tests for Battery construction.
+    TestBatteryVoltageProperties: Tests for Battery voltage calculations.
+    TestBatteryCapacityProperties: Tests for Battery capacity calculations.
+    TestBatteryEnergyProperties: Tests for Battery energy calculations.
+    TestBatteryCurrentLimits: Tests for Battery current limit calculations.
+    TestBatteryPowerLimits: Tests for Battery power limit calculations.
+    TestBatteryMass: Tests for Battery mass calculations.
+    TestBatteryFromTargetVoltage: Tests for Battery.from_target_voltage factory.
+    TestBatteryFromTargetEnergy: Tests for Battery.from_target_energy factory.
+    TestBatteryProperties: Tests for Battery properties and repr.
+"""
+
 import math
 
-from evtoltools.common import Mass, Voltage, Energy, Capacity, Current, Power
+import pytest
+
+from evtoltools.common import Capacity, Current, Energy, Mass, Power, Voltage
 from evtoltools.components import (
+    LITHIUM_ION,
+    LITHIUM_IRON_PHOSPHATE,
+    LITHIUM_NMC,
+    LITHIUM_POLYMER,
     Battery,
     BatteryChemistry,
     get_chemistry,
-    LITHIUM_ION,
-    LITHIUM_POLYMER,
-    LITHIUM_IRON_PHOSPHATE,
-    LITHIUM_NMC,
 )
-from evtoltools.components.base import ComponentResult
 
 
 class TestBatteryChemistryDefinitions:
@@ -137,6 +157,7 @@ class TestBatteryConstruction:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5000, 'mAh'),
+            cell_mass=Mass(50, 'g'),
             chemistry=LITHIUM_ION,
         )
         assert battery.cells_series == 14
@@ -147,6 +168,7 @@ class TestBatteryConstruction:
             cells_series=10,
             cells_parallel=2,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry='lithium_ion',
         )
         assert battery.chemistry == LITHIUM_ION
@@ -156,6 +178,7 @@ class TestBatteryConstruction:
             cells_series=10,
             cells_parallel=2,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry='lipo',
         )
         assert battery.chemistry == LITHIUM_POLYMER
@@ -165,6 +188,7 @@ class TestBatteryConstruction:
             cells_series=10,
             cells_parallel=2,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
         )
         assert battery.chemistry == LITHIUM_ION
 
@@ -174,6 +198,7 @@ class TestBatteryConstruction:
                 cells_series=0,
                 cells_parallel=2,
                 cell_capacity=Capacity(5, 'Ah'),
+                cell_mass=Mass(50, 'g'),
             )
 
     def test_invalid_cells_parallel_negative(self):
@@ -182,6 +207,7 @@ class TestBatteryConstruction:
                 cells_series=10,
                 cells_parallel=-1,
                 cell_capacity=Capacity(5, 'Ah'),
+                cell_mass=Mass(50, 'g'),
             )
 
     def test_invalid_c_rating_charge(self):
@@ -190,6 +216,7 @@ class TestBatteryConstruction:
                 cells_series=10,
                 cells_parallel=2,
                 cell_capacity=Capacity(5, 'Ah'),
+                cell_mass=Mass(50, 'g'),
                 c_rating_charge=0,
             )
 
@@ -199,6 +226,7 @@ class TestBatteryConstruction:
                 cells_series=10,
                 cells_parallel=2,
                 cell_capacity=Capacity(5, 'Ah'),
+                cell_mass=Mass(50, 'g'),
                 c_rating_discharge=-1,
             )
 
@@ -208,6 +236,7 @@ class TestBatteryConstruction:
                 cells_series=10,
                 cells_parallel=2,
                 cell_capacity=Capacity(5, 'Ah'),
+                cell_mass=Mass(50, 'g'),
                 pack_overhead_fraction=1.5,
             )
 
@@ -220,6 +249,7 @@ class TestBatteryVoltageProperties:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry=LITHIUM_ION,
         )
         # 14 * 3.7V = 51.8V
@@ -230,6 +260,7 @@ class TestBatteryVoltageProperties:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry=LITHIUM_ION,
         )
         # 14 * 4.2V = 58.8V
@@ -240,6 +271,7 @@ class TestBatteryVoltageProperties:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry=LITHIUM_ION,
         )
         # 14 * 2.8V = 39.2V
@@ -250,6 +282,7 @@ class TestBatteryVoltageProperties:
             cells_series=16,
             cells_parallel=2,
             cell_capacity=Capacity(3, 'Ah'),
+            cell_mass=Mass(45, 'g'),
             chemistry=LITHIUM_IRON_PHOSPHATE,
         )
         # 16 * 3.2V = 51.2V nominal
@@ -264,6 +297,7 @@ class TestBatteryCapacityProperties:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
         )
         # 4 * 5Ah = 20Ah
         assert abs(battery.total_capacity.in_units_of('Ah') - 20) < 0.01
@@ -273,6 +307,7 @@ class TestBatteryCapacityProperties:
             cells_series=10,
             cells_parallel=3,
             cell_capacity=Capacity(5000, 'mAh'),
+            cell_mass=Mass(50, 'g'),
         )
         # 3 * 5000mAh = 15000mAh = 15Ah
         assert abs(battery.total_capacity.in_units_of('Ah') - 15) < 0.01
@@ -282,6 +317,7 @@ class TestBatteryCapacityProperties:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
         )
         assert battery.total_cells == 56
 
@@ -294,6 +330,7 @@ class TestBatteryEnergyProperties:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry=LITHIUM_ION,
         )
         # 51.8V * 20Ah = 1036Wh
@@ -304,6 +341,7 @@ class TestBatteryEnergyProperties:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry=LITHIUM_ION,
         )
         assert abs(battery.energy_capacity.in_units_of('kWh') - 1.036) < 0.01
@@ -313,6 +351,7 @@ class TestBatteryEnergyProperties:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry=LITHIUM_ION,
         )
         # 58.8V * 20Ah = 1176Wh
@@ -327,6 +366,7 @@ class TestBatteryCurrentLimits:
             cells_series=10,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             c_rating_charge=1.0,
         )
         # 20Ah * 1C = 20A
@@ -337,6 +377,7 @@ class TestBatteryCurrentLimits:
             cells_series=10,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             c_rating_discharge=2.0,
         )
         # 20Ah * 2C = 40A
@@ -347,6 +388,7 @@ class TestBatteryCurrentLimits:
             cells_series=10,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             c_rating_discharge=5.0,
         )
         # 20Ah * 5C = 100A
@@ -361,6 +403,7 @@ class TestBatteryPowerLimits:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry=LITHIUM_ION,
             c_rating_charge=1.0,
         )
@@ -372,6 +415,7 @@ class TestBatteryPowerLimits:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry=LITHIUM_ION,
             c_rating_discharge=2.0,
         )
@@ -383,6 +427,7 @@ class TestBatteryPowerLimits:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry=LITHIUM_ION,
             c_rating_discharge=2.0,
         )
@@ -392,16 +437,7 @@ class TestBatteryPowerLimits:
 class TestBatteryMass:
     """Tests for Battery mass calculations."""
 
-    def test_mass_without_cell_mass(self):
-        battery = Battery(
-            cells_series=10,
-            cells_parallel=4,
-            cell_capacity=Capacity(5, 'Ah'),
-        )
-        # Without cell_mass, returns 0
-        assert battery.mass.magnitude == 0
-
-    def test_mass_with_cell_mass(self):
+    def test_mass_calculation(self):
         battery = Battery(
             cells_series=10,
             cells_parallel=4,
@@ -426,107 +462,152 @@ class TestBatteryMass:
 
 
 class TestBatteryFromTargetVoltage:
-    """Tests for Battery.from_target_voltage factory method."""
+    """Tests for Battery.from_target_voltage sizing method."""
 
     def test_exact_voltage_match(self):
         # 48V / 3.7V = 12.97 cells -> 13 cells -> 48.1V
-        result = Battery.from_target_voltage(
+        battery = Battery.from_target_voltage(
             target_voltage=Voltage(48.1, 'V'),  # 13 * 3.7 = exact
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry='lithium_ion',
         )
-        assert isinstance(result, ComponentResult)
-        battery = result.value
+        assert isinstance(battery, Battery)
         assert battery.cells_series == 13
 
     def test_voltage_rounds_up(self):
-        result = Battery.from_target_voltage(
+        battery = Battery.from_target_voltage(
             target_voltage=Voltage(48, 'V'),
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry='lithium_ion',
         )
-        battery = result.value
         # 48 / 3.7 = 12.97 -> rounds up to 13
         assert battery.cells_series == 13
-        assert len(result.warnings) > 0
-        assert "Rounded" in result.warnings[0]
+        assert len(battery.warnings) > 0
+        assert "Rounded" in battery.warnings[0]
 
-    def test_voltage_round_nearest(self):
-        result = Battery.from_target_voltage(
-            target_voltage=Voltage(48, 'V'),
+    def test_voltage_rounds_to_nearest(self):
+        # 44.4V / 3.7V = 12.0 -> exactly 12 cells
+        # 46V / 3.7V = 12.43 -> rounds down to 12 cells
+        # 48V / 3.7V = 12.97 -> rounds up to 13 cells
+        battery_down = Battery.from_target_voltage(
+            target_voltage=Voltage(46, 'V'),
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry='lithium_ion',
-            round_up=False,
         )
-        battery = result.value
-        # 48 / 3.7 = 12.97 -> rounds to 13
-        assert battery.cells_series == 13
+        assert battery_down.cells_series == 12  # 12.43 rounds down
 
-    def test_metadata_contains_voltage_info(self):
-        result = Battery.from_target_voltage(
+        battery_up = Battery.from_target_voltage(
             target_voltage=Voltage(48, 'V'),
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
+            chemistry='lithium_ion',
         )
-        assert 'target_voltage_v' in result.metadata
-        assert 'actual_voltage_v' in result.metadata
-        assert 'cells_exact' in result.metadata
+        assert battery_up.cells_series == 13  # 12.97 rounds up
+
+    def test_info_contains_voltage_info(self):
+        battery = Battery.from_target_voltage(
+            target_voltage=Voltage(48, 'V'),
+            cells_parallel=4,
+            cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
+        )
+        assert 'target_voltage_v' in battery.info
+        assert 'actual_voltage_v' in battery.info
+        assert 'cells_exact' in battery.info
 
     def test_low_voltage_minimum_one_cell(self):
-        result = Battery.from_target_voltage(
+        battery = Battery.from_target_voltage(
             target_voltage=Voltage(1, 'V'),  # Very low
             cells_parallel=2,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
         )
-        battery = result.value
         assert battery.cells_series >= 1
 
 
-class TestBatteryFromEnergyRequirement:
-    """Tests for Battery.from_energy_requirement factory method."""
+class TestBatteryFromTargetEnergy:
+    """Tests for Battery.from_target_energy sizing method."""
 
     def test_basic_energy_sizing(self):
-        result = Battery.from_energy_requirement(
-            required_energy=Energy(1, 'kWh'),
+        battery = Battery.from_target_energy(
+            target_energy=Energy(1, 'kWh'),
             target_voltage=Voltage(48, 'V'),
-            chemistry='lithium_ion',
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
+            chemistry='lithium_ion',
         )
-        battery = result.value
         # Should have enough capacity for 1kWh
         assert battery.energy_capacity.in_units_of('kWh') >= 1.0
 
-    def test_default_cell_capacity(self):
-        result = Battery.from_energy_requirement(
-            required_energy=Energy(500, 'Wh'),
-            target_voltage=Voltage(24, 'V'),
-        )
-        # Should use default 5Ah cell capacity
-        assert "default cell capacity" in result.warnings[0].lower()
-
-    def test_metadata_contains_energy_info(self):
-        result = Battery.from_energy_requirement(
-            required_energy=Energy(1, 'kWh'),
+    def test_info_contains_energy_info(self):
+        battery = Battery.from_target_energy(
+            target_energy=Energy(1, 'kWh'),
             target_voltage=Voltage(48, 'V'),
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
         )
-        assert 'required_energy_wh' in result.metadata
-        assert 'actual_energy_wh' in result.metadata
-        assert 'energy_margin_percent' in result.metadata
-        assert 'configuration' in result.metadata
+        assert 'target_energy_wh' in battery.info
+        assert 'actual_energy_wh' in battery.info
+        assert 'energy_margin_percent' in battery.info
+        assert 'configuration' in battery.info
 
     def test_configuration_string_format(self):
-        result = Battery.from_energy_requirement(
-            required_energy=Energy(500, 'Wh'),
+        battery = Battery.from_target_energy(
+            target_energy=Energy(500, 'Wh'),
             target_voltage=Voltage(24, 'V'),
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
         )
-        config = result.metadata['configuration']
+        config = battery.info['configuration']
         assert 'S' in config
         assert 'P' in config
+
+
+class TestBatterySINormalization:
+    """Tests for Battery SI unit normalization on construction."""
+
+    def test_cell_mass_normalized_to_kg(self):
+        """Cell mass should be normalized to kg (SI default)."""
+        battery = Battery(
+            cells_series=10,
+            cells_parallel=2,
+            cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),  # Input in grams
+        )
+        assert battery.cell_mass.units == 'kilogram'
+        assert abs(battery.cell_mass.magnitude - 0.05) < 0.0001
+
+    def test_cell_capacity_normalized_to_ah(self):
+        """Cell capacity should be normalized to Ah (SI default)."""
+        battery = Battery(
+            cells_series=10,
+            cells_parallel=2,
+            cell_capacity=Capacity(5000, 'mAh'),  # Input in mAh
+            cell_mass=Mass(50, 'g'),
+        )
+        assert battery.cell_capacity.units == 'ampere_hour'
+        assert abs(battery.cell_capacity.magnitude - 5.0) < 0.0001
+
+    def test_normalized_values_used_in_calculations(self):
+        """Verify normalized values are used correctly in calculations."""
+        battery = Battery(
+            cells_series=10,
+            cells_parallel=4,
+            cell_capacity=Capacity(5000, 'mAh'),  # 5 Ah
+            cell_mass=Mass(50, 'g'),  # 0.05 kg
+            pack_overhead_fraction=0.0,
+        )
+        # Total capacity should be 4 * 5Ah = 20Ah
+        assert abs(battery.total_capacity.in_units_of('Ah') - 20) < 0.01
+        # Total mass should be 40 cells * 0.05kg = 2.0kg
+        assert abs(battery.mass.in_units_of('kg') - 2.0) < 0.01
 
 
 class TestBatteryProperties:
@@ -537,6 +618,7 @@ class TestBatteryProperties:
             cells_series=10,
             cells_parallel=2,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
         )
         assert battery.component_type == 'battery'
 
@@ -545,6 +627,7 @@ class TestBatteryProperties:
             cells_series=10,
             cells_parallel=2,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
             chemistry=LITHIUM_ION,
         )
         # (3.7 - 2.8) / (4.2 - 2.8) = 0.9 / 1.4 ≈ 0.643
@@ -556,6 +639,7 @@ class TestBatteryProperties:
             cells_series=14,
             cells_parallel=4,
             cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
         )
         repr_str = repr(battery)
         assert 'Battery' in repr_str

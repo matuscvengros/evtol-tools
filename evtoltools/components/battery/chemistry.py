@@ -1,4 +1,34 @@
-"""Battery chemistry configurations."""
+"""Battery chemistry configurations.
+
+This module provides immutable battery chemistry configurations for different
+lithium-based battery types used in eVTOL aircraft. Each chemistry defines
+voltage characteristics and validation methods.
+
+Classes:
+    BatteryChemistry: Immutable configuration for a battery chemistry type.
+
+Functions:
+    get_chemistry: Get chemistry configuration by name or alias.
+
+Constants:
+    LITHIUM_ION: Standard lithium-ion chemistry configuration.
+    LITHIUM_POLYMER: Lithium polymer chemistry configuration.
+    LITHIUM_IRON_PHOSPHATE: LiFePO4 chemistry configuration.
+    LITHIUM_NMC: Nickel Manganese Cobalt chemistry configuration.
+    CHEMISTRY_REGISTRY: Registry mapping chemistry names to configurations.
+
+Examples:
+    Get chemistry by name::
+
+        chem = get_chemistry('lithium_ion')
+        print(chem.nominal_cell_voltage)  # 3.7 V
+
+    Validate cell voltage::
+
+        is_valid, msg = LITHIUM_ION.validate_voltage(Voltage(3.8, 'V'))
+        if is_valid:
+            print("Voltage is safe")
+"""
 
 from dataclasses import dataclass
 from typing import Dict, Optional

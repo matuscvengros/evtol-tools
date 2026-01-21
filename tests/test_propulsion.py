@@ -147,6 +147,63 @@ class TestPropellerFrequency:
         assert abs(freq - 15.92) < 0.1
 
 
+class TestPropellerSINormalization:
+    """Tests for Propeller SI unit normalization on construction."""
+
+    def test_diameter_normalized_to_meters(self):
+        """Diameter should be normalized to meters (SI default)."""
+        prop = Propeller(diameter=Length(150, 'cm'))  # Input in cm
+        assert prop.diameter.units == 'meter'
+        assert abs(prop.diameter.magnitude - 1.5) < 0.0001
+
+    def test_diameter_from_feet_normalized(self):
+        """Diameter in feet should be normalized to meters."""
+        prop = Propeller(diameter=Length(5, 'ft'))  # Input in feet
+        assert prop.diameter.units == 'meter'
+        # 5 ft ≈ 1.524 m
+        assert abs(prop.diameter.magnitude - 1.524) < 0.01
+
+    def test_normalized_diameter_used_in_calculations(self):
+        """Verify normalized diameter is used correctly in calculations."""
+        prop = Propeller(diameter=Length(200, 'cm'))  # 2 meters
+        # Radius should be 1m
+        assert abs(prop.radius.in_units_of('m') - 1.0) < 0.001
+        # Disk area should be pi m^2
+        import math
+        assert abs(prop.disk_area.in_units_of('m^2') - math.pi) < 0.001
+
+
+class TestMotorSINormalization:
+    """Tests for Motor SI unit normalization on construction."""
+
+    def test_max_power_normalized_to_watts(self):
+        """Max power should be normalized to watts (SI default)."""
+        motor = Motor(max_power=Power(50, 'kW'))  # Input in kW
+        assert motor.max_power.units == 'watt'
+        assert abs(motor.max_power.magnitude - 50000) < 0.1
+
+    def test_mass_normalized_to_kg(self):
+        """Mass should be normalized to kg (SI default)."""
+        motor = Motor(
+            max_power=Power(50, 'kW'),
+            mass=Mass(8000, 'g'),  # Input in grams
+        )
+        assert motor.mass.units == 'kilogram'
+        assert abs(motor.mass.magnitude - 8.0) < 0.0001
+
+    def test_max_rpm_normalized_to_rad_per_second(self):
+        """Max RPM should be normalized to rad/s (SI default)."""
+        motor = Motor(
+            max_power=Power(50, 'kW'),
+            max_rpm=AngularVelocity(6000, 'rpm'),  # Input in RPM
+        )
+        assert motor.max_rpm.units == 'radian / second'
+        # 6000 RPM = 6000 * 2*pi / 60 rad/s ≈ 628.32 rad/s
+        import math
+        expected = 6000 * 2 * math.pi / 60
+        assert abs(motor.max_rpm.magnitude - expected) < 0.1
+
+
 class TestMotorConstruction:
     """Tests for Motor construction."""
 

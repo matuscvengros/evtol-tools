@@ -29,6 +29,16 @@ class Payload(BaseComponent):
     z_position: Optional[Length] = None
     description: Optional[str] = None
 
+    def __post_init__(self):
+        """Normalize quantity fields to SI units."""
+        object.__setattr__(self, '_mass', self._mass.to_default())
+        if self.x_position is not None:
+            object.__setattr__(self, 'x_position', self.x_position.to_default())
+        if self.y_position is not None:
+            object.__setattr__(self, 'y_position', self.y_position.to_default())
+        if self.z_position is not None:
+            object.__setattr__(self, 'z_position', self.z_position.to_default())
+
     @property
     def component_type(self) -> str:
         return 'payload'

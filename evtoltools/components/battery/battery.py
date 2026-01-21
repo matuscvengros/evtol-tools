@@ -1,13 +1,48 @@
-"""Battery component for eVTOL aircraft."""
+"""Battery component for eVTOL aircraft.
 
-from dataclasses import dataclass, field
-from typing import Optional, Union
+This module provides the Battery component with cell configuration and chemistry
+support for eVTOL aircraft analysis. Batteries can be constructed directly with
+cell counts or via sizing methods that calculate configuration from target
+voltage or energy requirements.
+
+Classes:
+    Battery: Battery pack component with cell configuration and chemistry support.
+
+Examples:
+    Direct construction with cell counts::
+
+        battery = Battery(
+            cells_series=14,
+            cells_parallel=4,
+            cell_capacity=Capacity(5000, 'mAh'),
+            cell_mass=Mass(50, 'g'),
+            chemistry='lithium_ion'
+        )
+
+    Sizing from target voltage::
+
+        battery = Battery.from_target_voltage(
+            target_voltage=Voltage(48, 'V'),
+            cells_parallel=4,
+            cell_capacity=Capacity(5000, 'mAh'),
+            cell_mass=Mass(50, 'g'),
+            chemistry='lithium_ion'
+        )
+        # Check sizing notes if needed
+        print(battery.warnings)
+        print(battery.info)
+"""
+
 import math
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Union
 
-from evtoltools.common import Mass, Voltage, Energy, Capacity, Current, Power
-from evtoltools.components.base import BaseComponent, ComponentResult
+from evtoltools.common import Capacity, Current, Energy, Mass, Power, Voltage
+from evtoltools.components.base import BaseComponent
 from evtoltools.components.battery.chemistry import (
-    BatteryChemistry, get_chemistry, LITHIUM_ION
+    LITHIUM_ION,
+    BatteryChemistry,
+    get_chemistry,
 )
 
 
@@ -23,10 +58,10 @@ class Battery(BaseComponent):
         cells_series: Number of cells in series (determines voltage)
         cells_parallel: Number of cells in parallel (determines capacity)
         cell_capacity: Capacity of each cell (Ah or mAh)
+        cell_mass: Mass of individual cell
         chemistry: Battery chemistry configuration
         c_rating_charge: Maximum charge rate as multiple of capacity
         c_rating_discharge: Maximum discharge rate as multiple of capacity
-        cell_mass: Mass of individual cell (optional, for mass calculation)
         pack_overhead_fraction: Additional mass fraction for packaging/BMS
 
     Examples:
@@ -35,33 +70,40 @@ class Battery(BaseComponent):
         ...     cells_series=14,
         ...     cells_parallel=4,
         ...     cell_capacity=Capacity(5000, 'mAh'),
+        ...     cell_mass=Mass(50, 'g'),
         ...     chemistry='lithium_ion'
         ... )
         >>> print(battery.nominal_voltage)  # 51.8V (14 * 3.7V)
         >>> print(battery.total_capacity)   # 20Ah (4 * 5Ah)
 
         >>> # Method 2: Specify target voltage
-        >>> result = Battery.from_target_voltage(
+        >>> battery = Battery.from_target_voltage(
         ...     target_voltage=Voltage(48, 'V'),
         ...     cells_parallel=4,
         ...     cell_capacity=Capacity(5000, 'mAh'),
+        ...     cell_mass=Mass(50, 'g'),
         ...     chemistry='lithium_ion'
         ... )
-        >>> battery = result.value
-        >>> print(result.warnings)  # Shows voltage adjustment if rounding occurred
+        >>> print(battery.warnings)  # Shows voltage adjustment if rounding occurred
     """
 
     cells_series: int
     cells_parallel: int
     cell_capacity: Capacity
+    cell_mass: Mass
     chemistry: BatteryChemistry = field(default_factory=lambda: LITHIUM_ION)
     c_rating_charge: float = 1.0
     c_rating_discharge: float = 2.0
-    cell_mass: Optional[Mass] = None
     pack_overhead_fraction: float = 0.15  # 15% for BMS, wiring, enclosure
+    warnings: List[str] = field(default_factory=list)
+    info: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
-        """Validate inputs and convert chemistry string to object."""
+        """Validate inputs, convert chemistry string, and normalize units to SI."""
+        # Normalize quantities to SI units
+        object.__setattr__(self, 'cell_mass', self.cell_mass.to_default())
+        object.__setattr__(self, 'cell_capacity', self.cell_capacity.to_default())
+
         if isinstance(self.chemistry, str):
             object.__setattr__(self, 'chemistry', get_chemistry(self.chemistry))
 
@@ -84,12 +126,8 @@ class Battery(BaseComponent):
     def mass(self) -> Mass:
         """Calculate total battery pack mass.
 
-        If cell_mass is provided, calculates from cells plus overhead.
-        Otherwise returns Mass(0, 'kg') as placeholder.
+        Calculates from total cell mass plus pack overhead (BMS, wiring, enclosure).
         """
-        if self.cell_mass is None:
-            return Mass(0, 'kg')
-
         total_cells = self.cells_series * self.cells_parallel
         cell_mass_total = self.cell_mass * total_cells
         overhead_mass = cell_mass_total * self.pack_overhead_fraction
@@ -182,33 +220,33 @@ class Battery(BaseComponent):
         current_a = self.max_discharge_current.in_units_of('A')
         return Power(voltage_v * current_a, 'W')
 
-    # Factory methods
+    # Sizing methods
     @classmethod
     def from_target_voltage(
         cls,
         target_voltage: Voltage,
         cells_parallel: int,
         cell_capacity: Capacity,
+        cell_mass: Mass,
         chemistry: Union[str, BatteryChemistry] = 'lithium_ion',
-        round_up: bool = True,
         **kwargs
-    ) -> ComponentResult:
+    ) -> 'Battery':
         """Create battery by specifying target voltage.
 
         Calculates the number of series cells needed to achieve the target
-        voltage. If the result is not an integer, rounds up (default) and
-        notifies the user of the actual voltage.
+        voltage. Rounds to the nearest integer number of cells. Check
+        warnings for any adjustments made.
 
         Args:
-            target_voltage: Desired pack voltage
-            cells_parallel: Number of parallel cell groups
-            cell_capacity: Capacity per cell
-            chemistry: Chemistry type (string or BatteryChemistry)
-            round_up: If True, round cells up; if False, round to nearest
-            **kwargs: Additional arguments passed to Battery constructor
+            target_voltage: Desired pack voltage.
+            cells_parallel: Number of parallel cell groups.
+            cell_capacity: Capacity per cell.
+            cell_mass: Mass of individual cell.
+            chemistry: Chemistry type (string or BatteryChemistry).
+            **kwargs: Additional arguments passed to Battery constructor.
 
         Returns:
-            ComponentResult containing Battery instance and any warnings
+            Battery instance. Check warnings and info for details.
         """
         warnings = []
 
@@ -223,10 +261,7 @@ class Battery(BaseComponent):
         cell_v = chem.nominal_cell_voltage.in_units_of('V')
         cells_exact = target_v / cell_v
 
-        if round_up:
-            cells_series = math.ceil(cells_exact)
-        else:
-            cells_series = round(cells_exact)
+        cells_series = round(cells_exact)
 
         # Ensure at least 1 cell
         cells_series = max(1, cells_series)
@@ -241,50 +276,45 @@ class Battery(BaseComponent):
                 f"Actual voltage: {actual_voltage:.1f}V (target was {target_v:.1f}V)"
             )
 
-        battery = cls(
+        return cls(
             cells_series=cells_series,
             cells_parallel=cells_parallel,
             cell_capacity=cell_capacity,
+            cell_mass=cell_mass,
             chemistry=chem,
-            **kwargs
-        )
-
-        return ComponentResult(
-            value=battery,
             warnings=warnings,
-            metadata={
+            info={
                 'target_voltage_v': target_v,
                 'actual_voltage_v': actual_voltage,
                 'cells_exact': cells_exact,
-            }
+            },
+            **kwargs
         )
 
     @classmethod
-    def from_energy_requirement(
+    def from_target_energy(
         cls,
-        required_energy: Energy,
+        target_energy: Energy,
         target_voltage: Voltage,
+        cell_capacity: Capacity,
+        cell_mass: Mass,
         chemistry: Union[str, BatteryChemistry] = 'lithium_ion',
-        cell_capacity: Optional[Capacity] = None,
         **kwargs
-    ) -> ComponentResult:
-        """Create battery sized for energy requirement.
+    ) -> 'Battery':
+        """Create battery sized for target energy.
 
         Args:
-            required_energy: Required energy capacity
-            target_voltage: Target pack voltage
-            chemistry: Chemistry type
-            cell_capacity: Cell capacity (defaults to 5Ah if not specified)
-            **kwargs: Additional arguments
+            target_energy: Target energy capacity.
+            target_voltage: Target pack voltage.
+            cell_capacity: Capacity per cell.
+            cell_mass: Mass of individual cell.
+            chemistry: Chemistry type.
+            **kwargs: Additional arguments.
 
         Returns:
-            ComponentResult with Battery and sizing information
+            Battery instance. Check warnings and info for details.
         """
         warnings = []
-
-        if cell_capacity is None:
-            cell_capacity = Capacity(5, 'Ah')
-            warnings.append("Using default cell capacity of 5Ah")
 
         # First determine series cells for voltage
         if isinstance(chemistry, str):
@@ -305,10 +335,10 @@ class Battery(BaseComponent):
             )
 
         # Calculate required capacity
-        required_wh = required_energy.in_units_of('Wh')
-        required_ah = required_wh / actual_voltage
+        target_wh = target_energy.in_units_of('Wh')
+        target_ah = target_wh / actual_voltage
         cell_ah = cell_capacity.in_units_of('Ah')
-        cells_parallel = math.ceil(required_ah / cell_ah)
+        cells_parallel = math.ceil(target_ah / cell_ah)
         cells_parallel = max(1, cells_parallel)
         actual_ah = cell_ah * cells_parallel
         actual_wh = actual_voltage * actual_ah
@@ -318,25 +348,22 @@ class Battery(BaseComponent):
             f"providing {actual_wh:.1f}Wh"
         )
 
-        margin = (actual_wh - required_wh) / required_wh * 100
+        margin = (actual_wh - target_wh) / target_wh * 100
 
-        battery = cls(
+        return cls(
             cells_series=cells_series,
             cells_parallel=cells_parallel,
             cell_capacity=cell_capacity,
+            cell_mass=cell_mass,
             chemistry=chem,
-            **kwargs
-        )
-
-        return ComponentResult(
-            value=battery,
             warnings=warnings,
-            metadata={
-                'required_energy_wh': required_wh,
+            info={
+                'target_energy_wh': target_wh,
                 'actual_energy_wh': actual_wh,
                 'energy_margin_percent': margin,
                 'configuration': f"{cells_series}S{cells_parallel}P",
-            }
+            },
+            **kwargs
         )
 
     def __repr__(self) -> str:

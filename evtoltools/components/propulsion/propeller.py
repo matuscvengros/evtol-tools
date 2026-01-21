@@ -38,6 +38,9 @@ class Propeller:
     tip_mach_limit: float = 0.85
 
     def __post_init__(self):
+        # Normalize quantities to SI units
+        object.__setattr__(self, 'diameter', self.diameter.to_default())
+
         if self.num_blades < 2:
             raise ValueError("num_blades must be at least 2")
         if not 0 < self.efficiency_hover <= 1:
