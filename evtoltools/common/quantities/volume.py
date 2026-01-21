@@ -1,5 +1,7 @@
 """Volume quantity type for evtol-tools."""
 
+from pint.util import UnitsContainer
+
 from evtoltools.common.base import BaseQuantity
 
 
@@ -7,4 +9,4 @@ class Volume(BaseQuantity):
     """Represents a volume quantity."""
 
     _quantity_type = 'volume'
-    _dimensionality = '[length] ** 3'
+    _dimensionality = UnitsContainer({'[length]': 3})

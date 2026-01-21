@@ -1,5 +1,7 @@
 """Electric charge/capacity quantity type for evtol-tools."""
 
+from pint.util import UnitsContainer
+
 from evtoltools.common.base import BaseQuantity
 
 
@@ -11,4 +13,4 @@ class Capacity(BaseQuantity):
     """
 
     _quantity_type = 'capacity'
-    _dimensionality = '[current] * [time]'
+    _dimensionality = UnitsContainer({'[current]': 1, '[time]': 1})

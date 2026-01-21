@@ -1,5 +1,7 @@
 """Length quantity type for evtol-tools."""
 
+from pint.util import UnitsContainer
+
 from evtoltools.common.base import BaseQuantity
 
 
@@ -7,4 +9,4 @@ class Length(BaseQuantity):
     """Represents a length/distance quantity."""
 
     _quantity_type = 'length'
-    _dimensionality = '[length]'
+    _dimensionality = UnitsContainer({'[length]': 1})

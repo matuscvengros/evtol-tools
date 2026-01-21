@@ -1,5 +1,7 @@
 """Pressure quantity type for evtol-tools."""
 
+from pint.util import UnitsContainer
+
 from evtoltools.common.base import BaseQuantity
 
 
@@ -7,4 +9,4 @@ class Pressure(BaseQuantity):
     """Represents a pressure quantity."""
 
     _quantity_type = 'pressure'
-    _dimensionality = '[mass] / [length] / [time] ** 2'
+    _dimensionality = UnitsContainer({'[mass]': 1, '[length]': -1, '[time]': -2})

@@ -4,6 +4,8 @@ This module provides the Mass class for representing and manipulating
 mass/weight values with automatic unit conversion.
 """
 
+from pint.util import UnitsContainer
+
 from evtoltools.common.base import BaseQuantity
 
 
@@ -33,4 +35,4 @@ class Mass(BaseQuantity):
     """
 
     _quantity_type = 'mass'
-    _dimensionality = '[mass]'
+    _dimensionality = UnitsContainer({'[mass]': 1})

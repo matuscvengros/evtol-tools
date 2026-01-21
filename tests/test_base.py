@@ -5,6 +5,7 @@ These tests use Mass as a concrete implementation to test the base functionality
 
 import pytest
 import numpy as np
+from pint.util import UnitsContainer
 from evtoltools.common import Mass
 from evtoltools.common.base import BaseQuantity
 
@@ -354,3 +355,67 @@ class TestInUnitsOfHelper:
         m = Mass(np.array([1, 2, 3]), 'kg')
         result = in_units_of(m, 'g')
         np.testing.assert_array_almost_equal(result, np.array([1000, 2000, 3000]))
+
+
+class TestUnitsContainerDimensionality:
+    """Test that dimensionality is defined as UnitsContainer objects."""
+
+    def test_mass_dimensionality_is_units_container(self):
+        """Test that Mass._dimensionality is a UnitsContainer instance."""
+        assert isinstance(Mass._dimensionality, UnitsContainer)
+        assert dict(Mass._dimensionality) == {'[mass]': 1}
+
+    def test_force_dimensionality_is_units_container(self):
+        """Test that Force._dimensionality is a UnitsContainer instance."""
+        from evtoltools.common import Force
+        assert isinstance(Force._dimensionality, UnitsContainer)
+        assert dict(Force._dimensionality) == {'[mass]': 1, '[length]': 1, '[time]': -2}
+
+    def test_pressure_dimensionality_is_units_container(self):
+        """Test that Pressure._dimensionality is a UnitsContainer instance."""
+        from evtoltools.common import Pressure
+        assert isinstance(Pressure._dimensionality, UnitsContainer)
+        assert dict(Pressure._dimensionality) == {'[mass]': 1, '[length]': -1, '[time]': -2}
+
+    def test_velocity_dimensionality_is_units_container(self):
+        """Test that Velocity._dimensionality is a UnitsContainer instance."""
+        from evtoltools.common import Velocity
+        assert isinstance(Velocity._dimensionality, UnitsContainer)
+        assert dict(Velocity._dimensionality) == {'[length]': 1, '[time]': -1}
+
+    def test_equivalent_units_have_matching_dimensionality(self):
+        """Test that equivalent units have matching dimensionality via UnitsContainer."""
+        from evtoltools.common import Force
+        from evtoltools.common.registry import Q_
+
+        # N and kg*m/s^2 should have the same dimensionality
+        f1 = Force(10, 'N')
+        f2 = Force(10, 'kg*m/s^2')
+
+        # Both should match Force's dimensionality
+        assert f1._quantity.dimensionality == Force._dimensionality
+        assert f2._quantity.dimensionality == Force._dimensionality
+
+    def test_wrong_dimensionality_rejected_with_units_container(self):
+        """Test that wrong dimensionality is still rejected with UnitsContainer."""
+        from evtoltools.common import Pressure
+        with pytest.raises(ValueError, match="wrong dimensionality"):
+            Pressure(1, 'kg')
+
+    def test_all_quantity_types_have_units_container(self):
+        """Test that all quantity types define _dimensionality as UnitsContainer."""
+        from evtoltools.common import (
+            Mass, Length, Time, Temperature, Current, Substance, Luminosity,
+            Velocity, Area, Volume, Force, Power, Energy, Moment,
+            Density, Pressure, Voltage, Capacity, AngularVelocity, Frequency
+        )
+
+        quantity_classes = [
+            Mass, Length, Time, Temperature, Current, Substance, Luminosity,
+            Velocity, Area, Volume, Force, Power, Energy, Moment,
+            Density, Pressure, Voltage, Capacity, AngularVelocity, Frequency
+        ]
+
+        for cls in quantity_classes:
+            assert isinstance(cls._dimensionality, UnitsContainer), \
+                f"{cls.__name__}._dimensionality is not a UnitsContainer"

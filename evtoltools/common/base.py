@@ -9,6 +9,7 @@ from abc import ABC
 from typing import Union, Optional, Any
 import numpy as np
 from pint import Quantity as PintQuantity
+from pint.util import UnitsContainer
 
 from evtoltools.common.registry import ureg, Q_
 from evtoltools.common.config import DEFAULT_UNITS, ALLOWED_UNITS
@@ -28,7 +29,7 @@ class BaseQuantity(ABC):
 
     # Subclasses must override these
     _quantity_type: str = None
-    _dimensionality: str = None
+    _dimensionality: UnitsContainer = None
 
     def __init__(self, value: Union[float, int, list, np.ndarray, PintQuantity],
                  unit: Optional[str] = None):
@@ -80,27 +81,25 @@ class BaseQuantity(ABC):
             ) from e
 
         if self._dimensionality is not None:
-            expected_dim = ureg.get_dimensionality(self._dimensionality)
-            if test_quantity.dimensionality != expected_dim:
+            # Direct comparison - no string parsing needed
+            if test_quantity.dimensionality != self._dimensionality:
                 suggested = ALLOWED_UNITS.get(self._quantity_type, [])
                 raise ValueError(
                     f"Unit '{unit}' has wrong dimensionality for {self._quantity_type}. "
-                    f"Expected {self._dimensionality}, got {test_quantity.dimensionality}. "
+                    f"Expected {dict(self._dimensionality)}, got {dict(test_quantity.dimensionality)}. "
                     f"Suggested units: {', '.join(suggested)}"
                 )
 
     def _validate_dimensionality(self) -> None:
         """Validate that the quantity has the correct dimensionality."""
         if self._dimensionality is not None:
-            # Use pint's dimensionality comparison to handle equivalent dimensions
-            # Different units can have different string representations but same dimensionality
-            expected = ureg.get_dimensionality(self._dimensionality)
+            # Direct comparison - no string parsing needed
             actual = self._quantity.dimensionality
 
-            if actual != expected:
+            if actual != self._dimensionality:
                 raise ValueError(
-                    f"Expected dimensionality {self._dimensionality} for {self._quantity_type}, "
-                    f"got {actual}"
+                    f"Expected dimensionality {dict(self._dimensionality)} for {self._quantity_type}, "
+                    f"got {dict(actual)}"
                 )
 
     def to(self, unit: str) -> 'BaseQuantity':
