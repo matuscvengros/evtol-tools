@@ -27,7 +27,7 @@ class TestVoltageConstruction:
         assert v.magnitude == 1.5
 
     def test_invalid_unit(self):
-        with pytest.raises(ValueError, match="not allowed"):
+        with pytest.raises(ValueError, match="wrong dimensionality"):
             Voltage(12, 'W')  # Wrong unit type
 
 
@@ -95,7 +95,7 @@ class TestEnergyConstruction:
         assert e.magnitude == 1
 
     def test_invalid_unit(self):
-        with pytest.raises(ValueError, match="not allowed"):
+        with pytest.raises(ValueError, match="wrong dimensionality"):
             Energy(100, 'V')
 
 
@@ -165,7 +165,7 @@ class TestCapacityConstruction:
         assert c.magnitude == 3600
 
     def test_invalid_unit(self):
-        with pytest.raises(ValueError, match="not allowed"):
+        with pytest.raises(ValueError, match="wrong dimensionality"):
             Capacity(5, 'V')
 
 

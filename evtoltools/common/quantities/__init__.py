@@ -22,6 +22,8 @@ from evtoltools.common.quantities.angular_velocity import AngularVelocity
 from evtoltools.common.quantities.voltage import Voltage
 from evtoltools.common.quantities.energy import Energy
 from evtoltools.common.quantities.capacity import Capacity
+from evtoltools.common.quantities.pressure import Pressure
+from evtoltools.common.quantities.frequency import Frequency
 
 __all__ = [
     'Mass',
@@ -42,4 +44,6 @@ __all__ = [
     'Voltage',
     'Energy',
     'Capacity',
+    'Pressure',
+    'Frequency',
 ]

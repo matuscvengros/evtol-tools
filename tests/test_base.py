@@ -32,7 +32,7 @@ class TestBaseQuantityValidation:
 
     def test_unit_validation(self):
         """Test that invalid units are caught."""
-        with pytest.raises(ValueError, match="not allowed"):
+        with pytest.raises(ValueError, match="not recognized"):
             Mass(100, 'invalid_unit')
 
     def test_dimensionality_validation(self):
@@ -274,3 +274,83 @@ class TestBaseQuantityArraySupport:
         result = m1 + m2
         expected = np.array([110, 220, 330])
         np.testing.assert_array_almost_equal(result.magnitude, expected)
+
+
+class TestEquivalentUnitStrings:
+    """Test that equivalent unit strings are accepted."""
+
+    def test_pressure_n_per_m2(self):
+        """Pressure accepts N/m^2 as equivalent to Pa."""
+        from evtoltools.common import Pressure
+        p = Pressure(1, 'N/m^2')
+        assert abs(p.in_units_of('Pa') - 1.0) < 0.001
+
+    def test_pressure_convert_to_n_per_m2(self):
+        """Pressure can convert to N/m^2."""
+        from evtoltools.common import Pressure
+        p = Pressure(1, 'Pa')
+        p2 = p.to('N/m^2')
+        assert abs(p2.magnitude - 1.0) < 0.001
+
+    def test_force_kg_m_per_s2(self):
+        """Force accepts kg*m/s^2 as equivalent to N."""
+        from evtoltools.common import Force
+        f = Force(10, 'kg*m/s^2')
+        assert abs(f.in_units_of('N') - 10.0) < 0.001
+
+    def test_velocity_equivalent_forms(self):
+        """Velocity accepts equivalent unit forms."""
+        from evtoltools.common import Velocity
+        v = Velocity(10, 'm*s^-1')
+        assert abs(v.in_units_of('m/s') - 10.0) < 0.001
+
+    def test_wrong_dimensionality_rejected(self):
+        """Wrong dimensionality is still rejected."""
+        from evtoltools.common import Pressure
+        with pytest.raises(ValueError, match="wrong dimensionality"):
+            Pressure(1, 'kg')
+
+    def test_unknown_unit_rejected(self):
+        """Unknown units are still rejected."""
+        from evtoltools.common import Pressure
+        with pytest.raises(ValueError, match="not recognized"):
+            Pressure(1, 'foobar')
+
+
+class TestInUnitsOfHelper:
+    """Test the in_units_of helper function."""
+
+    def test_with_base_quantity(self):
+        """in_units_of works with BaseQuantity instances."""
+        from evtoltools.common import in_units_of
+        m = Mass(1, 'kg')
+        assert abs(in_units_of(m, 'g') - 1000) < 0.01
+
+    def test_with_pint_quantity_multiplication(self):
+        """in_units_of works with multiplication results."""
+        from evtoltools.common import Area, in_units_of
+        area = Area(10, 'm^2')
+        mass = Mass(5, 'kg')
+        result = area * mass
+        assert abs(in_units_of(result, 'kg*m^2') - 50.0) < 0.01
+
+    def test_with_pint_quantity_division(self):
+        """in_units_of works with division results."""
+        from evtoltools.common import Force, Area, in_units_of
+        force = Force(100, 'N')
+        area = Area(2, 'm^2')
+        result = force / area
+        assert abs(in_units_of(result, 'Pa') - 50.0) < 0.01
+
+    def test_type_error_for_invalid_input(self):
+        """in_units_of raises TypeError for invalid input."""
+        from evtoltools.common import in_units_of
+        with pytest.raises(TypeError, match="Expected BaseQuantity or pint Quantity"):
+            in_units_of(123, 'kg')
+
+    def test_with_array_quantity(self):
+        """in_units_of works with array quantities."""
+        from evtoltools.common import in_units_of
+        m = Mass(np.array([1, 2, 3]), 'kg')
+        result = in_units_of(m, 'g')
+        np.testing.assert_array_almost_equal(result, np.array([1000, 2000, 3000]))

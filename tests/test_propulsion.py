@@ -4,7 +4,8 @@ import pytest
 import math
 
 from evtoltools.common import (
-    Mass, Power, Length, Area, Velocity, AngularVelocity, Force, Density
+    Mass, Power, Length, Area, Velocity, AngularVelocity, Force, Density,
+    Pressure, Frequency
 )
 from evtoltools.components import PropulsionSystem, Motor, Propeller
 from evtoltools.components.base import BaseComponent
@@ -144,7 +145,8 @@ class TestPropellerFrequency:
         omega = AngularVelocity(100, 'rad/s')
         # freq = omega / (2*pi) = 100 / 6.283 ≈ 15.92 Hz
         freq = prop.frequency(omega)
-        assert abs(freq - 15.92) < 0.1
+        assert isinstance(freq, Frequency)
+        assert abs(freq.in_units_of('Hz') - 15.92) < 0.1
 
 
 class TestPropellerSINormalization:
@@ -504,8 +506,9 @@ class TestPropulsionSystemPerformanceMetrics:
 
         # Disk loading = T / A = 10000 / (4*pi) ≈ 795.8 N/m^2
         dl = system.disk_loading(thrust)
+        assert isinstance(dl, Pressure)
         expected = 10000 / (4 * math.pi)
-        assert abs(dl - expected) < 1
+        assert abs(dl.in_units_of('Pa') - expected) < 1
 
     def test_power_loading(self):
         motor = Motor(max_power=Power(50, 'kW'), efficiency=0.90)

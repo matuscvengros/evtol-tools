@@ -66,13 +66,28 @@ class BaseQuantity(ABC):
         self._validate_dimensionality()
 
     def _validate_unit(self, unit: str) -> None:
-        """Validate that unit is allowed for this quantity type."""
-        allowed = ALLOWED_UNITS.get(self._quantity_type, [])
-        if unit not in allowed:
+        """Validate that unit has correct dimensionality for this quantity type.
+
+        Accepts any unit string that pint recognizes with the correct dimensionality.
+        """
+        try:
+            test_quantity = Q_(1, unit)
+        except Exception as e:
+            suggested = ALLOWED_UNITS.get(self._quantity_type, [])
             raise ValueError(
-                f"Unit '{unit}' not allowed for {self._quantity_type}. "
-                f"Allowed units: {', '.join(allowed)}"
-            )
+                f"Unit '{unit}' not recognized by pint for {self._quantity_type}. "
+                f"Suggested units: {', '.join(suggested)}"
+            ) from e
+
+        if self._dimensionality is not None:
+            expected_dim = ureg.get_dimensionality(self._dimensionality)
+            if test_quantity.dimensionality != expected_dim:
+                suggested = ALLOWED_UNITS.get(self._quantity_type, [])
+                raise ValueError(
+                    f"Unit '{unit}' has wrong dimensionality for {self._quantity_type}. "
+                    f"Expected {self._dimensionality}, got {test_quantity.dimensionality}. "
+                    f"Suggested units: {', '.join(suggested)}"
+                )
 
     def _validate_dimensionality(self) -> None:
         """Validate that the quantity has the correct dimensionality."""
@@ -92,13 +107,13 @@ class BaseQuantity(ABC):
         """Convert to a different unit, returning a new instance.
 
         Args:
-            unit: Target unit string
+            unit: Target unit string (any dimensionally-compatible unit)
 
         Returns:
             New instance of the same type in the target unit
 
         Raises:
-            ValueError: If unit is not allowed for this quantity type
+            ValueError: If unit has wrong dimensionality for this quantity type
         """
         self._validate_unit(unit)
         converted = self._quantity.to(unit)

@@ -12,7 +12,17 @@ Examples:
     >>> import numpy as np
     >>> component_masses = Mass(np.array([100, 200, 300]), 'kg')
     >>> total = component_masses.magnitude.sum()
+
+    >>> # Cross-type arithmetic with in_units_of helper
+    >>> from evtoltools.common import Area, Mass, in_units_of
+    >>> result = Area(10, 'm^2') * Mass(5, 'kg')
+    >>> in_units_of(result, 'kg*m^2')
+    50.0
 """
+
+from typing import Union
+import numpy as np
+from pint import Quantity as PintQuantity
 
 from evtoltools.common.quantities import (
     Mass,
@@ -33,10 +43,53 @@ from evtoltools.common.quantities import (
     Voltage,
     Energy,
     Capacity,
+    Pressure,
+    Frequency,
 )
 
 # For advanced users who need direct pint access
 from evtoltools.common.registry import ureg, Q_
+
+# Import BaseQuantity for type checking (avoid circular import by importing here)
+from evtoltools.common.base import BaseQuantity
+
+
+def in_units_of(quantity: Union[BaseQuantity, PintQuantity], unit: str) -> Union[float, np.ndarray]:
+    """Get numeric value of a quantity in specified units.
+
+    Works with both BaseQuantity instances and raw pint Quantities (such as
+    those returned from cross-type arithmetic operations).
+
+    Args:
+        quantity: A BaseQuantity instance or pint Quantity
+        unit: Target unit string
+
+    Returns:
+        Numeric value in target units (scalar or array)
+
+    Examples:
+        >>> from evtoltools.common import Area, Mass, in_units_of
+        >>>
+        >>> # Works with BaseQuantity
+        >>> area = Area(10, 'm^2')
+        >>> in_units_of(area, 'ft^2')
+        107.639...
+        >>>
+        >>> # Works with derived pint Quantities
+        >>> mass = Mass(5, 'kg')
+        >>> result = area * mass  # Returns pint Quantity
+        >>> in_units_of(result, 'kg*m^2')
+        50.0
+    """
+    if isinstance(quantity, BaseQuantity):
+        return quantity._quantity.to(unit).magnitude
+    elif isinstance(quantity, PintQuantity):
+        return quantity.to(unit).magnitude
+    else:
+        raise TypeError(
+            f"Expected BaseQuantity or pint Quantity, got {type(quantity).__name__}"
+        )
+
 
 __all__ = [
     # Primary API - quantity classes
@@ -58,10 +111,15 @@ __all__ = [
     'Voltage',
     'Energy',
     'Capacity',
+    'Pressure',
+    'Frequency',
 
     # Advanced API - direct pint access
     'ureg',
     'Q_',
+
+    # Helper functions
+    'in_units_of',
 ]
 
 __version__ = '0.1.0'

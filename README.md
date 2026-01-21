@@ -13,7 +13,9 @@ The core feature is a robust, type-safe units system built on `pint` that suppor
 - **NumPy array support** - Perform batch calculations on arrays of values
 - **Type safety** - Each quantity type (Mass, Length, Velocity, etc.) is a distinct class
 - **Arithmetic operations** - Natural mathematical operations with automatic unit handling
-- **Validation** - Ensures dimensional consistency and prevents unit errors
+- **Dimensionality validation** - Ensures dimensional consistency and prevents unit errors
+- **Flexible unit notation** - Accepts any dimensionally-equivalent unit string (e.g., 'N/m^2' for Pressure)
+- **Cross-type arithmetic helper** - `in_units_of()` function for extracting values from derived quantities
 
 ### Currently Implemented Quantities
 
@@ -38,6 +40,8 @@ The core feature is a robust, type-safe units system built on `pint` that suppor
 - **AngularVelocity** - rad/s, rpm, deg/s
 - **Voltage** - V, mV, kV
 - **Capacity** - Ah, mAh, C
+- **Pressure** - Pa, kPa, bar, psi, atm
+- **Frequency** - Hz, kHz, MHz, mHz
 
 ### Planned Features
 
@@ -129,6 +133,51 @@ if m1 > m2:
 masses = Mass(np.array([100, 200, 300]), 'kg')
 threshold = Mass(150, 'kg')
 heavy_components = masses > threshold  # [False, True, True]
+```
+
+### Equivalent Unit Strings
+
+The units system validates dimensionality rather than using a strict whitelist. Any dimensionally-equivalent unit string that pint recognizes is accepted:
+
+```python
+from evtoltools.common import Pressure, Force
+
+# These are all equivalent ways to create a Pressure
+p1 = Pressure(1, 'Pa')
+p2 = Pressure(1, 'N/m^2')      # Same as Pa
+p3 = Pressure(1, 'kg/(m*s^2)') # Also valid
+
+# Force can be created with base units
+f = Force(10, 'kg*m/s^2')  # Equivalent to 10 N
+print(f.in_units_of('N'))  # 10.0
+```
+
+Note: The quantity type documentation lists commonly-used units as suggestions, but you're not limited to those options.
+
+### Cross-Type Arithmetic
+
+When multiplying or dividing different quantity types, the result is a pint Quantity. Use the `in_units_of()` helper function to extract the numeric value:
+
+```python
+from evtoltools.common import Area, Mass, Force, in_units_of
+
+# Cross-type multiplication returns a pint Quantity
+area = Area(10, 'm^2')
+mass = Mass(5, 'kg')
+result = area * mass  # pint Quantity with units kg*m^2
+
+# Use in_units_of() to get the numeric value
+value = in_units_of(result, 'kg*m^2')  # Returns 50.0
+
+# Works for derived quantities like pressure
+force = Force(100, 'N')
+area = Area(2, 'm^2')
+pressure = force / area
+print(in_units_of(pressure, 'Pa'))  # 50.0
+
+# Also works with BaseQuantity instances directly
+m = Mass(1, 'kg')
+print(in_units_of(m, 'g'))  # 1000.0
 ```
 
 ## Examples
@@ -225,7 +274,7 @@ evtol-tools/
 │   │       ├── force.py
 │   │       ├── power.py
 │   │       ├── energy.py
-│   │       └── ... (18 quantity types total)
+│   │       └── ... (20 quantity types total)
 │   └── components/               # Vehicle component models
 │       ├── __init__.py
 │       ├── base.py               # BaseComponent class
@@ -252,8 +301,6 @@ evtol-tools/
 │   ├── test_battery.py
 │   ├── test_propulsion.py
 │   └── test_vehicle_weight_calculator.py
-└── agents/                       # Agent policies
-    └── POLICIES.md
 ```
 
 ### Design Principles
@@ -261,7 +308,7 @@ evtol-tools/
 - **Immutable operations** - All operations return new instances for safety
 - **Extensible architecture** - Easy to add new quantity types
 - **Type safety** - Each physical quantity is a distinct class
-- **Validated units** - Whitelist of allowed units per quantity type
+- **Validated units** - Dimensionality validation ensures unit compatibility
 - **Modular design** - Clean separation of concerns
 
 ### Adding New Quantities
@@ -277,7 +324,9 @@ To extend the units system with a new quantity type:
        _quantity_type = 'velocity'
        _dimensionality = '[length] / [time]'
    ```
-3. Add default and allowed units to `config.py`
+3. Add default unit and suggested units list to `config.py`:
+   - `DEFAULT_UNITS` - The unit used when none is specified
+   - `ALLOWED_UNITS` - Suggested units shown in error messages (not enforced)
 4. Export the new class in `quantities/__init__.py` and `common/__init__.py`
 
 ## Testing

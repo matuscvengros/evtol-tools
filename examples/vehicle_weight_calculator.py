@@ -42,15 +42,15 @@ from evtoltools.components import (
 # =============================================================================
 
 # MTOW fractions
-STRUCTURE_FRACTION = 0.30                 # Structure as fraction of MTOW
+STRUCTURE_FRACTION = 0.38                 # Structure as fraction of MTOW
 AVIONICS_FRACTION = 0.05                  # Avionics as fraction of MTOW
 
 # Payload
-PAYLOAD_MASS = Mass(120, 'kg')           # Payload mass
+PAYLOAD_MASS = Mass(300, 'kg')           # Payload mass
 
 # Battery configuration
-TARGET_BATTERY_ENERGY = Energy(10, 'kWh')  # Target battery energy
-TARGET_BATTERY_VOLTAGE = Voltage(48, 'V')  # Target battery voltage
+TARGET_BATTERY_ENERGY = Energy(80, 'kWh')  # Target battery energy
+TARGET_BATTERY_VOLTAGE = Voltage(500, 'V')  # Target battery voltage
 CELL_CAPACITY = Capacity(5000, 'mAh')      # Individual cell capacity
 CELL_MASS = Mass(70, 'g')                  # Individual cell mass
 
@@ -58,8 +58,8 @@ CELL_MASS = Mass(70, 'g')                  # Individual cell mass
 # FIXED PROPULSION CONFIGURATION
 # =============================================================================
 
-NUM_MOTORS = 4                            # Total number of motors
-PROPELLER_DIAMETER = Length(2, 'm')       # Propeller diameter
+NUM_MOTORS = 12                            # Total number of motors
+PROPELLER_DIAMETER = Length(1.8, 'm')       # Propeller diameter
 MOTOR_EFFICIENCY = 0.90                   # Motor + ESC efficiency
 PROPELLER_FM = 0.70                       # Propeller Figure of Merit
 
@@ -278,7 +278,8 @@ def main():
     print(f"  Total disk area:   {propulsion.total_disk_area.in_units_of('m^2'):.2f} m^2")
     print(f"  Motor efficiency:  {propulsion.average_motor_efficiency * 100:.0f}%")
     print(f"  Figure of Merit:   {propulsion.average_figure_of_merit:.2f}")
-    print(f"  Disk loading:      {propulsion.disk_loading(thrust):.1f} N/m^2")
+    disk_load = propulsion.disk_loading(thrust)
+    print(f"  Disk loading:      {disk_load.in_units_of('Pa'):.1f} Pa")
     print()
 
     # -------------------------------------------------------------------------

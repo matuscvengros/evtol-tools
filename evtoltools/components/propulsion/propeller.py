@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Optional
 import math
 
-from evtoltools.common import Length, Area, Velocity, AngularVelocity
+from evtoltools.common import Length, Area, Velocity, AngularVelocity, Frequency
 
 
 @dataclass
@@ -148,17 +148,18 @@ class Propeller:
         tip = self.tip_speed(angular_velocity)
         return tip.in_units_of('m/s') / speed_of_sound.in_units_of('m/s')
 
-    def frequency(self, angular_velocity: AngularVelocity) -> float:
-        """Calculate rotational frequency in Hz.
+    def frequency(self, angular_velocity: AngularVelocity) -> Frequency:
+        """Calculate rotational frequency.
 
         Args:
             angular_velocity: Rotational speed
 
         Returns:
-            Frequency in Hz (revolutions per second)
+            Frequency as Frequency quantity
         """
         omega_rad_s = angular_velocity.in_units_of('rad/s')
-        return omega_rad_s / (2 * math.pi)
+        freq_hz = omega_rad_s / (2 * math.pi)
+        return Frequency(freq_hz, 'Hz')
 
     def __repr__(self) -> str:
         return (

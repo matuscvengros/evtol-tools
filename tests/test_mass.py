@@ -43,7 +43,7 @@ class TestMassConstruction:
 
     def test_invalid_unit(self):
         """Test that invalid units raise ValueError."""
-        with pytest.raises(ValueError, match="Unit 'm' not allowed"):
+        with pytest.raises(ValueError, match="wrong dimensionality"):
             Mass(100, 'm')
 
     def test_pint_quantity_input(self):

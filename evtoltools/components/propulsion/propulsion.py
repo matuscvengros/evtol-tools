@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 import math
 
-from evtoltools.common import Mass, Power, Force, Area, Velocity, Density
+from evtoltools.common import Mass, Power, Force, Area, Velocity, Density, Pressure
 from evtoltools.components.base import BaseComponent
 from evtoltools.components.propulsion.motor import Motor
 from evtoltools.components.propulsion.propeller import Propeller
@@ -186,18 +186,18 @@ class PropulsionSystem(BaseComponent):
         electrical_w = shaft_power.in_units_of('W') / avg_efficiency
         return Power(electrical_w, 'W')
 
-    def disk_loading(self, thrust: Force) -> float:
+    def disk_loading(self, thrust: Force) -> Pressure:
         """Calculate disk loading (thrust per unit disk area).
 
         Args:
             thrust: Total thrust
 
         Returns:
-            Disk loading in N/m^2
+            Disk loading as Pressure
         """
         thrust_n = thrust.in_units_of('N')
         area_m2 = self.total_disk_area.in_units_of('m^2')
-        return thrust_n / area_m2
+        return Pressure(thrust_n / area_m2, 'Pa')
 
     def power_loading(self, thrust: Force) -> float:
         """Calculate power loading (thrust per unit power).
