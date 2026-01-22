@@ -429,8 +429,6 @@ open htmlcov/index.html
 - `tests/test_propulsion.py` - Motors, propellers, propulsion systems
 - `tests/test_vehicle_weight_calculator.py` - Integration tests
 
-See `CLAUDE.md` for detailed pytest command reference.
-
 ## Development
 
 ### Adding New Physical Quantities
