@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Union
 import math
 
-from evtoltools.common import Mass, Power, Force, Area, Velocity, Density, Pressure, Length
+from evtoltools.common import Mass, Power, Force, Area, Velocity, Density, Pressure, Length, sqrt
 from evtoltools.common.atmosphere import Atmosphere, Altitude
 from evtoltools.components.base import BaseComponent
 from evtoltools.components.propulsion.motor import Motor
@@ -78,29 +78,35 @@ class PropulsionSystem(BaseComponent):
     @property
     def mass(self) -> Mass:
         """Total propulsion system mass (motors only)."""
-        total_kg = 0.0
+        total = Mass(0, 'kg')
         for motor in self.motors:
             if motor.mass is not None:
-                total_kg += motor.mass.in_units_of('kg')
-        return Mass(total_kg, 'kg')
+                total = total + motor.mass
+        return total
 
     @property
     def total_disk_area(self) -> Area:
         """Combined disk area of all propellers."""
-        total_m2 = sum(p.disk_area.in_units_of('m^2') for p in self.propellers)
-        return Area(total_m2, 'm^2')
+        total = Area(0, 'm^2')
+        for p in self.propellers:
+            total = total + p.disk_area
+        return total
 
     @property
     def total_max_electrical_power(self) -> Power:
         """Total maximum electrical power across all motors."""
-        total_w = sum(m.max_power.in_units_of('W') for m in self.motors)
-        return Power(total_w, 'W')
+        total = Power(0, 'W')
+        for m in self.motors:
+            total = total + m.max_power
+        return total
 
     @property
     def total_max_shaft_power(self) -> Power:
         """Total maximum shaft power across all motors."""
-        total_w = sum(m.max_shaft_power.in_units_of('W') for m in self.motors)
-        return Power(total_w, 'W')
+        total = Power(0, 'W')
+        for m in self.motors:
+            total = total + m.max_shaft_power
+        return total
 
     @property
     def average_motor_efficiency(self) -> float:
@@ -145,13 +151,9 @@ class PropulsionSystem(BaseComponent):
         elif air_density is None:
             air_density = Density(1.225, 'kg/m^3')
 
-        thrust_n = float(thrust.in_units_of('N'))
-        rho = float(air_density.in_units_of('kg/m^3'))
-        area_m2 = float(self.total_disk_area.in_units_of('m^2'))
-
-        # Ideal power from momentum theory
-        power_w = thrust_n ** 1.5 / math.sqrt(2 * rho * area_m2)
-        return Power(power_w, 'W')
+        # Ideal power from momentum theory: P = T^(3/2) / sqrt(2 * rho * A)
+        power_pint = thrust ** 1.5 / sqrt(2 * air_density * self.total_disk_area)
+        return Power(power_pint.to('W'))
 
     def hover_shaft_power(
         self,
@@ -175,8 +177,7 @@ class PropulsionSystem(BaseComponent):
         fm = self.average_figure_of_merit
 
         # Actual shaft power accounting for rotor efficiency
-        power_w = ideal_power.in_units_of('W') / (fm * self.installation_efficiency)
-        return Power(power_w, 'W')
+        return ideal_power / (fm * self.installation_efficiency)
 
     def hover_electrical_power(
         self,
@@ -196,9 +197,7 @@ class PropulsionSystem(BaseComponent):
         """
         shaft_power = self.hover_shaft_power(thrust, air_density, atmosphere)
         avg_efficiency = self.average_motor_efficiency
-
-        electrical_w = shaft_power.in_units_of('W') / avg_efficiency
-        return Power(electrical_w, 'W')
+        return shaft_power / avg_efficiency
 
     def disk_loading(self, thrust: Force) -> Pressure:
         """Calculate disk loading (thrust per unit disk area).
@@ -209,9 +208,8 @@ class PropulsionSystem(BaseComponent):
         Returns:
             Disk loading as Pressure
         """
-        thrust_n = thrust.in_units_of('N')
-        area_m2 = self.total_disk_area.in_units_of('m^2')
-        return Pressure(thrust_n / area_m2, 'Pa')
+        dl_pint = thrust / self.total_disk_area
+        return Pressure(dl_pint.to('Pa'))
 
     def power_loading(self, thrust: Force) -> float:
         """Calculate power loading (thrust per unit power).
@@ -252,12 +250,9 @@ class PropulsionSystem(BaseComponent):
         elif air_density is None:
             air_density = Density(1.225, 'kg/m^3')
 
-        thrust_n = float(thrust.in_units_of('N'))
-        rho = float(air_density.in_units_of('kg/m^3'))
-        area_m2 = float(self.total_disk_area.in_units_of('m^2'))
-
-        v_i = math.sqrt(thrust_n / (2 * rho * area_m2))
-        return Velocity(v_i, 'm/s')
+        # Induced velocity: v_i = sqrt(T / (2 * rho * A))
+        v_pint = sqrt(thrust / (2 * air_density * self.total_disk_area))
+        return Velocity(v_pint.to('m/s'))
 
     def max_tip_speed(
         self,
@@ -274,8 +269,7 @@ class PropulsionSystem(BaseComponent):
             Maximum allowable tip speed (minimum across all propellers)
         """
         max_speeds = [p.max_tip_speed(speed_of_sound, atmosphere) for p in self.propellers]
-        max_m_s = min(v.in_units_of('m/s') for v in max_speeds)
-        return Velocity(max_m_s, 'm/s')
+        return min(max_speeds, key=lambda v: v.magnitude)
 
     def __repr__(self) -> str:
         return (

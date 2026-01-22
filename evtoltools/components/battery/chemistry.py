@@ -74,9 +74,7 @@ class BatteryChemistry:
     @property
     def voltage_range(self) -> Voltage:
         """Usable voltage range per cell (max - min)."""
-        max_v = self.max_cell_voltage.in_units_of('V')
-        min_v = self.min_cell_voltage.in_units_of('V')
-        return Voltage(max_v - min_v, 'V')
+        return self.max_cell_voltage - self.min_cell_voltage
 
 
 # Predefined chemistry configurations

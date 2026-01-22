@@ -56,9 +56,7 @@ class Motor:
         Returns:
             Mechanical shaft power output
         """
-        power_w = electrical_power.in_units_of('W')
-        shaft_power_w = power_w * self.efficiency
-        return Power(shaft_power_w, 'W')
+        return electrical_power * self.efficiency
 
     def electrical_power(self, shaft_power: Power) -> Power:
         """Calculate electrical power required for given shaft power.
@@ -71,9 +69,7 @@ class Motor:
         Returns:
             Required electrical power input
         """
-        power_w = shaft_power.in_units_of('W')
-        electrical_power_w = power_w / self.efficiency
-        return Power(electrical_power_w, 'W')
+        return shaft_power / self.efficiency
 
     @property
     def max_shaft_power(self) -> Power:

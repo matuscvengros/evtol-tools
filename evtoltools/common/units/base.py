@@ -206,6 +206,59 @@ class BaseQuantity(ABC):
     def __rmul__(self, other):
         return self.__mul__(other)
 
+    def __rtruediv__(self, other: Union[float, int]) -> Any:
+        """Handle scalar / quantity (e.g., 1 / time -> frequency).
+
+        Returns a pint Quantity since dividing a scalar by a quantity
+        produces a different dimensionality.
+        """
+        if isinstance(other, (int, float, np.number)):
+            return other / self._quantity
+        return NotImplemented
+
+    def __pow__(self, exponent: Union[float, int]) -> Any:
+        """Raise quantity to a power.
+
+        Returns a pint Quantity since the dimensionality changes
+        (e.g., Area ** 0.5 -> Length, Force ** 1.5 -> new dimensions).
+        """
+        if not isinstance(exponent, (int, float, np.number)):
+            return NotImplemented
+        return self._quantity ** exponent
+
+    def __rpow__(self, base: Union[float, int]) -> Any:
+        """Handle base ** quantity (rare, e.g., 2 ** dimensionless)."""
+        if isinstance(base, (int, float, np.number)):
+            return base ** self._quantity
+        return NotImplemented
+
+    def __neg__(self) -> 'BaseQuantity':
+        """Return negated quantity (same type)."""
+        return self.__class__(-self._quantity)
+
+    def __abs__(self) -> 'BaseQuantity':
+        """Return absolute value (same type)."""
+        return self.__class__(abs(self._quantity))
+
+    def __float__(self) -> float:
+        """Convert to float (magnitude only, loses units).
+
+        For scalar quantities, returns the magnitude as a float.
+        For single-element arrays, returns that element as a float.
+        Raises TypeError for multi-element arrays.
+
+        Warning: This loses unit information. Use in_units_of() when
+        you need to ensure specific units.
+        """
+        mag = self._quantity.magnitude
+        if isinstance(mag, np.ndarray):
+            if mag.size == 1:
+                return float(mag.item())
+            raise TypeError(
+                f"Cannot convert array quantity with {mag.size} elements to float"
+            )
+        return float(mag)
+
     # Comparison operations
     def __eq__(self, other: Union['BaseQuantity', PintQuantity]) -> bool:
         if isinstance(other, BaseQuantity):

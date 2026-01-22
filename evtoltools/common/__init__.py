@@ -64,6 +64,35 @@ from evtoltools.common.atmosphere import (
 )
 
 
+def sqrt(quantity: Union[BaseQuantity, PintQuantity]) -> PintQuantity:
+    """Calculate square root of a quantity.
+
+    Returns a pint Quantity since the dimensionality changes
+    (e.g., sqrt(Area) -> Length).
+
+    Args:
+        quantity: A BaseQuantity instance or pint Quantity
+
+    Returns:
+        pint Quantity with square root of magnitude and half the dimensionality
+
+    Examples:
+        >>> from evtoltools.common import Area, sqrt, in_units_of
+        >>> area = Area(100, 'm^2')
+        >>> length = sqrt(area)  # Returns pint Quantity ~= 10 m
+        >>> in_units_of(length, 'm')
+        10.0
+    """
+    if isinstance(quantity, BaseQuantity):
+        return quantity._quantity ** 0.5
+    elif isinstance(quantity, PintQuantity):
+        return quantity ** 0.5
+    else:
+        raise TypeError(
+            f"Expected BaseQuantity or pint Quantity, got {type(quantity).__name__}"
+        )
+
+
 def in_units_of(quantity: Union[BaseQuantity, PintQuantity], unit: str) -> Union[float, np.ndarray]:
     """Get numeric value of a quantity in specified units.
 
@@ -140,6 +169,7 @@ __all__ = [
 
     # Helper functions
     'in_units_of',
+    'sqrt',
 ]
 
 __version__ = '0.1.0'

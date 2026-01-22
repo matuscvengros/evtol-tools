@@ -142,42 +142,36 @@ class Battery(BaseComponent):
     @property
     def nominal_voltage(self) -> Voltage:
         """Pack nominal voltage (series cells * cell nominal voltage)."""
-        cell_v = self.chemistry.nominal_cell_voltage.in_units_of('V')
-        return Voltage(cell_v * self.cells_series, 'V')
+        return self.chemistry.nominal_cell_voltage * self.cells_series
 
     @property
     def max_voltage(self) -> Voltage:
         """Pack maximum voltage (fully charged)."""
-        cell_v = self.chemistry.max_cell_voltage.in_units_of('V')
-        return Voltage(cell_v * self.cells_series, 'V')
+        return self.chemistry.max_cell_voltage * self.cells_series
 
     @property
     def min_voltage(self) -> Voltage:
         """Pack minimum voltage (fully discharged)."""
-        cell_v = self.chemistry.min_cell_voltage.in_units_of('V')
-        return Voltage(cell_v * self.cells_series, 'V')
+        return self.chemistry.min_cell_voltage * self.cells_series
 
     # Capacity properties
     @property
     def total_capacity(self) -> Capacity:
         """Total pack capacity (parallel cells * cell capacity)."""
-        cell_ah = self.cell_capacity.in_units_of('Ah')
-        return Capacity(cell_ah * self.cells_parallel, 'Ah')
+        return self.cell_capacity * self.cells_parallel
 
     # Energy properties
     @property
     def energy_capacity(self) -> Energy:
         """Total energy capacity at nominal voltage (Wh)."""
-        voltage_v = self.nominal_voltage.in_units_of('V')
-        capacity_ah = self.total_capacity.in_units_of('Ah')
-        return Energy(voltage_v * capacity_ah, 'Wh')
+        energy_pint = self.nominal_voltage * self.total_capacity
+        return Energy(energy_pint.to('Wh'))
 
     @property
     def energy_capacity_max(self) -> Energy:
         """Maximum energy capacity at full charge voltage (Wh)."""
-        voltage_v = self.max_voltage.in_units_of('V')
-        capacity_ah = self.total_capacity.in_units_of('Ah')
-        return Energy(voltage_v * capacity_ah, 'Wh')
+        energy_pint = self.max_voltage * self.total_capacity
+        return Energy(energy_pint.to('Wh'))
 
     @property
     def usable_energy_ratio(self) -> float:
@@ -195,13 +189,19 @@ class Battery(BaseComponent):
     # Current limits
     @property
     def max_charge_current(self) -> Current:
-        """Maximum charging current based on C-rating."""
+        """Maximum charging current based on C-rating.
+
+        C-rating is implicitly 1/hr, so Ah * C-rating = A.
+        """
         capacity_ah = self.total_capacity.in_units_of('Ah')
         return Current(capacity_ah * self.c_rating_charge, 'A')
 
     @property
     def max_discharge_current(self) -> Current:
-        """Maximum discharge current based on C-rating."""
+        """Maximum discharge current based on C-rating.
+
+        C-rating is implicitly 1/hr, so Ah * C-rating = A.
+        """
         capacity_ah = self.total_capacity.in_units_of('Ah')
         return Current(capacity_ah * self.c_rating_discharge, 'A')
 
@@ -209,16 +209,14 @@ class Battery(BaseComponent):
     @property
     def max_charge_power(self) -> Power:
         """Maximum charging power."""
-        voltage_v = self.nominal_voltage.in_units_of('V')
-        current_a = self.max_charge_current.in_units_of('A')
-        return Power(voltage_v * current_a, 'W')
+        power_pint = self.nominal_voltage * self.max_charge_current
+        return Power(power_pint.to('W'))
 
     @property
     def max_discharge_power(self) -> Power:
         """Maximum continuous discharge power."""
-        voltage_v = self.nominal_voltage.in_units_of('V')
-        current_a = self.max_discharge_current.in_units_of('A')
-        return Power(voltage_v * current_a, 'W')
+        power_pint = self.nominal_voltage * self.max_discharge_current
+        return Power(power_pint.to('W'))
 
     # Sizing methods
     @classmethod

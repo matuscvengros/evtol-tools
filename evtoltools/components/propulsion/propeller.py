@@ -54,15 +54,12 @@ class Propeller:
     @property
     def radius(self) -> Length:
         """Propeller radius (half of diameter)."""
-        r_m = self.diameter.in_units_of('m') / 2
-        return Length(r_m, 'm')
+        return self.diameter / 2
 
     @property
     def disk_area(self) -> Area:
         """Disk area swept by propeller (pi * r^2)."""
-        r_m = self.radius.in_units_of('m')
-        area_m2 = math.pi * r_m ** 2
-        return Area(area_m2, 'm^2')
+        return Area(math.pi * self.radius ** 2)
 
     def tip_speed(self, angular_velocity: AngularVelocity) -> Velocity:
         """Calculate propeller tip speed.
@@ -75,10 +72,8 @@ class Propeller:
         Returns:
             Tip speed as Velocity
         """
-        omega_rad_s = angular_velocity.in_units_of('rad/s')
-        r_m = self.radius.in_units_of('m')
-        tip_speed_m_s = omega_rad_s * r_m
-        return Velocity(tip_speed_m_s, 'm/s')
+        v_pint = angular_velocity * self.radius
+        return Velocity(v_pint.to('m/s'))
 
     def angular_velocity_from_tip_speed(self, tip_speed: Velocity) -> AngularVelocity:
         """Calculate angular velocity for given tip speed.
@@ -91,10 +86,8 @@ class Propeller:
         Returns:
             Required angular velocity
         """
-        v_m_s = tip_speed.in_units_of('m/s')
-        r_m = self.radius.in_units_of('m')
-        omega_rad_s = v_m_s / r_m
-        return AngularVelocity(omega_rad_s, 'rad/s')
+        omega_pint = tip_speed / self.radius
+        return AngularVelocity(omega_pint.to('rad/s'))
 
     def max_tip_speed(
         self,
@@ -120,8 +113,7 @@ class Propeller:
         elif speed_of_sound is None:
             speed_of_sound = Velocity(343, 'm/s')  # Sea level ISA
 
-        max_tip_speed_m_s = speed_of_sound.in_units_of('m/s') * self.tip_mach_limit
-        return Velocity(max_tip_speed_m_s, 'm/s')
+        return speed_of_sound * self.tip_mach_limit
 
     def max_angular_velocity(
         self,
@@ -167,7 +159,8 @@ class Propeller:
             speed_of_sound = Velocity(343, 'm/s')
 
         tip = self.tip_speed(angular_velocity)
-        return tip.in_units_of('m/s') / speed_of_sound.in_units_of('m/s')
+        mach_pint = tip / speed_of_sound
+        return float(mach_pint.magnitude)
 
     def frequency(self, angular_velocity: AngularVelocity) -> Frequency:
         """Calculate rotational frequency.
