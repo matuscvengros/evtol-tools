@@ -212,7 +212,7 @@ class TestMotorConstruction:
     def test_basic_construction(self):
         motor = Motor(max_power=Power(50, 'kW'))
         assert motor.max_power.in_units_of('kW') == 50
-        assert motor.efficiency == 0.90  # Default
+        assert motor.efficiency == 0.92  # Default
 
     def test_with_all_parameters(self):
         motor = Motor(

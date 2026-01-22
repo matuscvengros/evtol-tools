@@ -1,10 +1,11 @@
 """Propeller component for eVTOL propulsion."""
 
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Union
 import math
 
 from evtoltools.common import Length, Area, Velocity, AngularVelocity, Frequency
+from evtoltools.common.atmosphere import Atmosphere
 
 
 @dataclass
@@ -97,17 +98,26 @@ class Propeller:
 
     def max_tip_speed(
         self,
-        speed_of_sound: Optional[Velocity] = None
+        speed_of_sound: Optional[Velocity] = None,
+        atmosphere: Optional[Union[Atmosphere, Length]] = None
     ) -> Velocity:
         """Calculate maximum tip speed based on Mach limit.
 
         Args:
-            speed_of_sound: Local speed of sound (defaults to sea level ISA: 343 m/s)
+            speed_of_sound: Local speed of sound (defaults to sea level ISA: 343 m/s).
+                Ignored if atmosphere is provided.
+            atmosphere: Atmosphere instance or Length altitude.
+                If provided, extracts speed of sound from atmosphere.
 
         Returns:
             Maximum allowable tip speed
         """
-        if speed_of_sound is None:
+        # Determine speed of sound
+        if atmosphere is not None:
+            if isinstance(atmosphere, Length):
+                atmosphere = Atmosphere(atmosphere)
+            speed_of_sound = atmosphere.speed_of_sound
+        elif speed_of_sound is None:
             speed_of_sound = Velocity(343, 'm/s')  # Sea level ISA
 
         max_tip_speed_m_s = speed_of_sound.in_units_of('m/s') * self.tip_mach_limit
@@ -115,34 +125,45 @@ class Propeller:
 
     def max_angular_velocity(
         self,
-        speed_of_sound: Optional[Velocity] = None
+        speed_of_sound: Optional[Velocity] = None,
+        atmosphere: Optional[Union[Atmosphere, Length]] = None
     ) -> AngularVelocity:
         """Calculate maximum angular velocity based on tip Mach limit.
 
         Args:
-            speed_of_sound: Local speed of sound (defaults to sea level ISA: 343 m/s)
+            speed_of_sound: Local speed of sound (defaults to sea level ISA: 343 m/s).
+                Ignored if atmosphere is provided.
+            atmosphere: Atmosphere instance or Length altitude.
 
         Returns:
             Maximum angular velocity to stay within Mach limit
         """
-        max_tip = self.max_tip_speed(speed_of_sound)
+        max_tip = self.max_tip_speed(speed_of_sound, atmosphere)
         return self.angular_velocity_from_tip_speed(max_tip)
 
     def tip_mach_number(
         self,
         angular_velocity: AngularVelocity,
-        speed_of_sound: Optional[Velocity] = None
+        speed_of_sound: Optional[Velocity] = None,
+        atmosphere: Optional[Union[Atmosphere, Length]] = None
     ) -> float:
         """Calculate tip Mach number at given angular velocity.
 
         Args:
             angular_velocity: Rotational speed
-            speed_of_sound: Local speed of sound
+            speed_of_sound: Local speed of sound.
+                Ignored if atmosphere is provided.
+            atmosphere: Atmosphere instance or Length altitude.
 
         Returns:
             Tip Mach number (dimensionless)
         """
-        if speed_of_sound is None:
+        # Determine speed of sound
+        if atmosphere is not None:
+            if isinstance(atmosphere, Length):
+                atmosphere = Atmosphere(atmosphere)
+            speed_of_sound = atmosphere.speed_of_sound
+        elif speed_of_sound is None:
             speed_of_sound = Velocity(343, 'm/s')
 
         tip = self.tip_speed(angular_velocity)

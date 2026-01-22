@@ -1,10 +1,11 @@
 """Propulsion system for eVTOL aircraft."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import List, Optional, Union
 import math
 
-from evtoltools.common import Mass, Power, Force, Area, Velocity, Density, Pressure
+from evtoltools.common import Mass, Power, Force, Area, Velocity, Density, Pressure, Length
+from evtoltools.common.atmosphere import Atmosphere
 from evtoltools.components.base import BaseComponent
 from evtoltools.components.propulsion.motor import Motor
 from evtoltools.components.propulsion.propeller import Propeller
@@ -119,7 +120,8 @@ class PropulsionSystem(BaseComponent):
     def hover_power_ideal(
         self,
         thrust: Force,
-        air_density: Optional[Density] = None
+        air_density: Optional[Density] = None,
+        atmosphere: Optional[Union[Atmosphere, Length]] = None
     ) -> Power:
         """Calculate ideal hover power from momentum theory.
 
@@ -127,17 +129,25 @@ class PropulsionSystem(BaseComponent):
 
         Args:
             thrust: Total thrust required (typically equals weight)
-            air_density: Air density (defaults to sea level ISA)
+            air_density: Air density (defaults to sea level ISA).
+                Ignored if atmosphere is provided.
+            atmosphere: Atmosphere instance or Length altitude.
+                If provided, extracts density from atmosphere.
 
         Returns:
             Ideal induced power
         """
-        if air_density is None:
+        # Determine air density
+        if atmosphere is not None:
+            if isinstance(atmosphere, Length):
+                atmosphere = Atmosphere(atmosphere)
+            air_density = atmosphere.density
+        elif air_density is None:
             air_density = Density(1.225, 'kg/m^3')
 
-        thrust_n = thrust.in_units_of('N')
-        rho = air_density.in_units_of('kg/m^3')
-        area_m2 = self.total_disk_area.in_units_of('m^2')
+        thrust_n = float(thrust.in_units_of('N'))
+        rho = float(air_density.in_units_of('kg/m^3'))
+        area_m2 = float(self.total_disk_area.in_units_of('m^2'))
 
         # Ideal power from momentum theory
         power_w = thrust_n ** 1.5 / math.sqrt(2 * rho * area_m2)
@@ -146,7 +156,8 @@ class PropulsionSystem(BaseComponent):
     def hover_shaft_power(
         self,
         thrust: Force,
-        air_density: Optional[Density] = None
+        air_density: Optional[Density] = None,
+        atmosphere: Optional[Union[Atmosphere, Length]] = None
     ) -> Power:
         """Calculate shaft power required to hover.
 
@@ -154,12 +165,13 @@ class PropulsionSystem(BaseComponent):
 
         Args:
             thrust: Total thrust required
-            air_density: Air density
+            air_density: Air density. Ignored if atmosphere is provided.
+            atmosphere: Atmosphere instance or Length altitude.
 
         Returns:
             Required shaft power
         """
-        ideal_power = self.hover_power_ideal(thrust, air_density)
+        ideal_power = self.hover_power_ideal(thrust, air_density, atmosphere)
         fm = self.average_figure_of_merit
 
         # Actual shaft power accounting for rotor efficiency
@@ -169,18 +181,20 @@ class PropulsionSystem(BaseComponent):
     def hover_electrical_power(
         self,
         thrust: Force,
-        air_density: Optional[Density] = None
+        air_density: Optional[Density] = None,
+        atmosphere: Optional[Union[Atmosphere, Length]] = None
     ) -> Power:
         """Calculate electrical power required to hover.
 
         Args:
             thrust: Total thrust required (typically equals weight)
-            air_density: Air density
+            air_density: Air density. Ignored if atmosphere is provided.
+            atmosphere: Atmosphere instance or Length altitude.
 
         Returns:
             Electrical power required
         """
-        shaft_power = self.hover_shaft_power(thrust, air_density)
+        shaft_power = self.hover_shaft_power(thrust, air_density, atmosphere)
         avg_efficiency = self.average_motor_efficiency
 
         electrical_w = shaft_power.in_units_of('W') / avg_efficiency
@@ -215,7 +229,8 @@ class PropulsionSystem(BaseComponent):
     def induced_velocity(
         self,
         thrust: Force,
-        air_density: Optional[Density] = None
+        air_density: Optional[Density] = None,
+        atmosphere: Optional[Union[Atmosphere, Length]] = None
     ) -> Velocity:
         """Calculate induced velocity in hover.
 
@@ -223,24 +238,42 @@ class PropulsionSystem(BaseComponent):
 
         Args:
             thrust: Total thrust
-            air_density: Air density
+            air_density: Air density. Ignored if atmosphere is provided.
+            atmosphere: Atmosphere instance or Length altitude.
 
         Returns:
             Induced velocity
         """
-        if air_density is None:
+        # Determine air density
+        if atmosphere is not None:
+            if isinstance(atmosphere, Length):
+                atmosphere = Atmosphere(atmosphere)
+            air_density = atmosphere.density
+        elif air_density is None:
             air_density = Density(1.225, 'kg/m^3')
 
-        thrust_n = thrust.in_units_of('N')
-        rho = air_density.in_units_of('kg/m^3')
-        area_m2 = self.total_disk_area.in_units_of('m^2')
+        thrust_n = float(thrust.in_units_of('N'))
+        rho = float(air_density.in_units_of('kg/m^3'))
+        area_m2 = float(self.total_disk_area.in_units_of('m^2'))
 
         v_i = math.sqrt(thrust_n / (2 * rho * area_m2))
         return Velocity(v_i, 'm/s')
 
-    def max_tip_speed(self) -> Velocity:
-        """Get maximum tip speed across all propellers."""
-        max_speeds = [p.max_tip_speed() for p in self.propellers]
+    def max_tip_speed(
+        self,
+        speed_of_sound: Optional[Velocity] = None,
+        atmosphere: Optional[Union[Atmosphere, Length]] = None
+    ) -> Velocity:
+        """Get maximum tip speed across all propellers.
+
+        Args:
+            speed_of_sound: Local speed of sound. Ignored if atmosphere is provided.
+            atmosphere: Atmosphere instance or Length altitude.
+
+        Returns:
+            Maximum allowable tip speed (minimum across all propellers)
+        """
+        max_speeds = [p.max_tip_speed(speed_of_sound, atmosphere) for p in self.propellers]
         max_m_s = min(v.in_units_of('m/s') for v in max_speeds)
         return Velocity(max_m_s, 'm/s')
 

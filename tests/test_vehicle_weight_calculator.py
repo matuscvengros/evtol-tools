@@ -5,6 +5,26 @@ import pytest
 
 import aerosandbox as asb
 
+# Check if ipopt solver is available
+def _ipopt_available():
+    """Check if ipopt solver is available for CasADi."""
+    try:
+        opti = asb.Opti()
+        x = opti.variable(init_guess=1.0)
+        opti.subject_to(x >= 0)
+        opti.solve(verbose=False)
+        return True
+    except RuntimeError as e:
+        if "ipopt" in str(e).lower():
+            return False
+        raise
+
+# Skip marker for tests requiring ipopt
+requires_ipopt = pytest.mark.skipif(
+    not _ipopt_available(),
+    reason="ipopt solver not available"
+)
+
 from evtoltools.common import (
     Mass,
     Length,
@@ -58,6 +78,7 @@ def solve_mtow(
     }
 
 
+@requires_ipopt
 class TestMtowSolver:
     """Tests for the wet mass solver using aerosandbox."""
 
@@ -301,6 +322,7 @@ class TestHoverPowerCalculation:
         assert abs(actual_power - expected_power) < 1.0
 
 
+@requires_ipopt
 class TestIntegration:
     """Integration tests for complete vehicle weight calculation."""
 

@@ -27,7 +27,7 @@ class Motor:
     """
 
     max_power: Power  # Max electrical input power
-    efficiency: float = 0.90
+    efficiency: float = 0.92  # Efficiency (0 < efficiency <= 1)
     mass: Optional[Mass] = None
     kv_rating: Optional[float] = None  # RPM per volt
     max_rpm: Optional[AngularVelocity] = None

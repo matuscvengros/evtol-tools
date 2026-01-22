@@ -47,6 +47,16 @@ from evtoltools.common.quantities import (
     Frequency,
 )
 
+from evtoltools.common.atmosphere import (
+    Atmosphere,
+    atmosphere_at_altitude,
+    sea_level_atmosphere,
+    ISA_SEA_LEVEL_TEMPERATURE,
+    ISA_SEA_LEVEL_PRESSURE,
+    ISA_SEA_LEVEL_DENSITY,
+    ISA_SEA_LEVEL_SPEED_OF_SOUND,
+)
+
 # For advanced users who need direct pint access
 from evtoltools.common.registry import ureg, Q_
 
@@ -113,6 +123,15 @@ __all__ = [
     'Capacity',
     'Pressure',
     'Frequency',
+
+    # Atmosphere API
+    'Atmosphere',
+    'atmosphere_at_altitude',
+    'sea_level_atmosphere',
+    'ISA_SEA_LEVEL_TEMPERATURE',
+    'ISA_SEA_LEVEL_PRESSURE',
+    'ISA_SEA_LEVEL_DENSITY',
+    'ISA_SEA_LEVEL_SPEED_OF_SOUND',
 
     # Advanced API - direct pint access
     'ureg',
