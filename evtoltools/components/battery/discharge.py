@@ -139,15 +139,21 @@ class AnalyticalDischargeModel(DischargeModel):
     internal_resistance: Resistance
     capacity_ah: float
 
-    def _open_circuit_voltage(self, soc: Union[float, np.ndarray]) -> float:
+    def __post_init__(self):
+        """Normalize quantities to default units."""
+        object.__setattr__(self, 'v_max', self.v_max.to_default())
+        object.__setattr__(self, 'v_min', self.v_min.to_default())
+        object.__setattr__(self, 'v_nominal', self.v_nominal.to_default())
+        object.__setattr__(self, 'internal_resistance', self.internal_resistance.to_default())
+
+    def _open_circuit_voltage(self, soc: Union[float, np.ndarray]) -> Voltage:
         """Calculate open-circuit voltage from SoC using linear interpolation.
 
         Models OCV as linear between v_min (SoC=0) and v_max (SoC=1).
         More sophisticated models could use polynomial or lookup-based OCV.
         """
-        v_max_val = self.v_max.in_units_of('V')
-        v_min_val = self.v_min.in_units_of('V')
-        return v_min_val + soc * (v_max_val - v_min_val)
+        # Direct arithmetic on Voltage objects (Policy 4)
+        return self.v_min + (self.v_max - self.v_min) * soc
 
     def get_voltage(
         self,
@@ -167,20 +173,21 @@ class AnalyticalDischargeModel(DischargeModel):
         """
         v_oc = self._open_circuit_voltage(soc)
         current = c_rate * self.capacity_ah  # A
-        r = self.internal_resistance.in_units_of('ohm')
 
-        # Voltage drop under load (I*R loss)
-        v_drop = current * r
+        # IR voltage drop: V = I * R (use .magnitude since units are normalized)
+        v_drop = Voltage(current * self.internal_resistance.magnitude, 'V')
         voltage = v_oc - v_drop
 
         # Clamp to minimum voltage
-        v_min_val = self.v_min.in_units_of('V')
-        if isinstance(voltage, np.ndarray):
-            voltage = np.maximum(voltage, v_min_val)
+        if isinstance(soc, np.ndarray):
+            # Array case: use magnitude for numpy element-wise clamping
+            clamped = np.maximum(voltage.magnitude, self.v_min.magnitude)
+            return Voltage(clamped, 'V')
         else:
-            voltage = max(voltage, v_min_val)
-
-        return Voltage(voltage, 'V')
+            # Scalar case: direct comparison
+            if voltage < self.v_min:
+                return self.v_min
+            return voltage
 
     def get_resistance(
         self,
@@ -218,7 +225,11 @@ class LookupTableDischargeModel(DischargeModel):
     )
 
     def __post_init__(self):
-        """Initialize interpolators."""
+        """Initialize interpolators and normalize quantities."""
+        # Normalize v_min to default units if present
+        if self.v_min is not None:
+            object.__setattr__(self, 'v_min', self.v_min.to_default())
+
         self._interpolator = RegularGridInterpolator(
             (self.soc_points, self.c_rate_points),
             self.voltage_data,
@@ -266,8 +277,8 @@ class LookupTableDischargeModel(DischargeModel):
         voltage = self._interpolator(points)
 
         if self.v_min is not None:
-            v_min_val = self.v_min.in_units_of('V')
-            voltage = np.maximum(voltage, v_min_val)
+            # Use .magnitude since v_min is normalized in __post_init__
+            voltage = np.maximum(voltage, self.v_min.magnitude)
 
         if isinstance(soc, np.ndarray):
             return Voltage(voltage, 'V')

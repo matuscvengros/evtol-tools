@@ -62,6 +62,13 @@ class BatteryChemistry:
     max_discharge_temperature: Optional[Temperature] = None
     min_temperature: Optional[Temperature] = None
 
+    # Properties (per Policy 9)
+    @property
+    def voltage_range(self) -> Voltage:
+        """Usable voltage range per cell (max - min)."""
+        return self.max_cell_voltage - self.min_cell_voltage
+
+    # Public methods (per Policy 9)
     def validate_voltage(self, voltage: Voltage) -> tuple[bool, str]:
         """Check if voltage is within safe operating range.
 
@@ -76,11 +83,6 @@ class BatteryChemistry:
         if voltage < self.min_cell_voltage:
             return False, f"Voltage {voltage} below min {self.min_cell_voltage}"
         return True, "Voltage within safe range"
-
-    @property
-    def voltage_range(self) -> Voltage:
-        """Usable voltage range per cell (max - min)."""
-        return self.max_cell_voltage - self.min_cell_voltage
 
 
 # Predefined chemistry configurations

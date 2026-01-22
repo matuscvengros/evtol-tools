@@ -135,6 +135,153 @@ class Battery(BaseComponent):
         if not 0 <= self.pack_overhead_fraction < 1:
             raise ValueError("pack_overhead_fraction must be between 0 and 1")
 
+    # Classmethods (alternative constructors, per Policy 9)
+    @classmethod
+    def from_target_voltage(
+        cls,
+        target_voltage: Voltage,
+        cells_parallel: int,
+        cell_capacity: Capacity,
+        cell_mass: Mass,
+        chemistry: Union[str, BatteryChemistry] = 'lithium_ion',
+        **kwargs
+    ) -> 'Battery':
+        """Create battery by specifying target voltage.
+
+        Calculates the number of series cells needed to achieve the target
+        voltage. Rounds to the nearest integer number of cells. Check
+        warnings for any adjustments made.
+
+        Args:
+            target_voltage: Desired pack voltage.
+            cells_parallel: Number of parallel cell groups.
+            cell_capacity: Capacity per cell.
+            cell_mass: Mass of individual cell.
+            chemistry: Chemistry type (string or BatteryChemistry).
+            **kwargs: Additional arguments passed to Battery constructor.
+
+        Returns:
+            Battery instance. Check warnings and info for details.
+        """
+        warnings = []
+
+        # Get chemistry configuration
+        if isinstance(chemistry, str):
+            chem = get_chemistry(chemistry)
+        else:
+            chem = chemistry
+
+        # Calculate required cells
+        target_v = target_voltage.in_units_of('V')
+        cell_v = chem.nominal_cell_voltage.in_units_of('V')
+        cells_exact = target_v / cell_v
+
+        cells_series = round(cells_exact)
+
+        # Ensure at least 1 cell
+        cells_series = max(1, cells_series)
+
+        # Calculate actual voltage
+        actual_voltage = cell_v * cells_series
+
+        # Notify if rounding occurred
+        if abs(cells_exact - cells_series) > 0.001:
+            warnings.append(
+                f"Rounded {cells_exact:.2f} cells to {cells_series}. "
+                f"Actual voltage: {actual_voltage:.1f}V (target was {target_v:.1f}V)"
+            )
+
+        return cls(
+            cells_series=cells_series,
+            cells_parallel=cells_parallel,
+            cell_capacity=cell_capacity,
+            cell_mass=cell_mass,
+            chemistry=chem,
+            warnings=warnings,
+            info={
+                'target_voltage_v': target_v,
+                'actual_voltage_v': actual_voltage,
+                'cells_exact': cells_exact,
+            },
+            **kwargs
+        )
+
+    @classmethod
+    def from_target_energy(
+        cls,
+        target_energy: Energy,
+        target_voltage: Voltage,
+        cell_capacity: Capacity,
+        cell_mass: Mass,
+        chemistry: Union[str, BatteryChemistry] = 'lithium_ion',
+        **kwargs
+    ) -> 'Battery':
+        """Create battery sized for target energy.
+
+        Args:
+            target_energy: Target energy capacity.
+            target_voltage: Target pack voltage.
+            cell_capacity: Capacity per cell.
+            cell_mass: Mass of individual cell.
+            chemistry: Chemistry type.
+            **kwargs: Additional arguments.
+
+        Returns:
+            Battery instance. Check warnings and info for details.
+        """
+        warnings = []
+
+        # First determine series cells for voltage
+        if isinstance(chemistry, str):
+            chem = get_chemistry(chemistry)
+        else:
+            chem = chemistry
+
+        target_v = target_voltage.in_units_of('V')
+        cell_v = chem.nominal_cell_voltage.in_units_of('V')
+        cells_series = math.ceil(target_v / cell_v)
+        cells_series = max(1, cells_series)
+        actual_voltage = cell_v * cells_series
+
+        if abs(target_v - actual_voltage) > 0.1:
+            warnings.append(
+                f"Adjusted voltage from {target_v:.1f}V to {actual_voltage:.1f}V "
+                f"({cells_series} cells in series)"
+            )
+
+        # Calculate required capacity
+        target_wh = target_energy.in_units_of('Wh')
+        target_ah = target_wh / actual_voltage
+        cell_ah = cell_capacity.in_units_of('Ah')
+        cells_parallel = math.ceil(target_ah / cell_ah)
+        cells_parallel = max(1, cells_parallel)
+        actual_ah = cell_ah * cells_parallel
+        actual_wh = actual_voltage * actual_ah
+
+        warnings.append(
+            f"Sized for {actual_ah:.1f}Ah capacity ({cells_parallel}P configuration), "
+            f"providing {actual_wh:.1f}Wh"
+        )
+
+        margin = (actual_wh - target_wh) / target_wh * 100
+
+        return cls(
+            cells_series=cells_series,
+            cells_parallel=cells_parallel,
+            cell_capacity=cell_capacity,
+            cell_mass=cell_mass,
+            chemistry=chem,
+            warnings=warnings,
+            info={
+                'target_energy_wh': target_wh,
+                'actual_energy_wh': actual_wh,
+                'energy_margin_percent': margin,
+                'configuration': f"{cells_series}S{cells_parallel}P",
+            },
+            **kwargs
+        )
+
+    # Properties (per Policy 9)
     @property
     def component_type(self) -> str:
         return 'battery'
@@ -499,152 +646,7 @@ class Battery(BaseComponent):
             start_soc, end_soc, self.c_rating_charge
         )
 
-    # Sizing methods
-    @classmethod
-    def from_target_voltage(
-        cls,
-        target_voltage: Voltage,
-        cells_parallel: int,
-        cell_capacity: Capacity,
-        cell_mass: Mass,
-        chemistry: Union[str, BatteryChemistry] = 'lithium_ion',
-        **kwargs
-    ) -> 'Battery':
-        """Create battery by specifying target voltage.
-
-        Calculates the number of series cells needed to achieve the target
-        voltage. Rounds to the nearest integer number of cells. Check
-        warnings for any adjustments made.
-
-        Args:
-            target_voltage: Desired pack voltage.
-            cells_parallel: Number of parallel cell groups.
-            cell_capacity: Capacity per cell.
-            cell_mass: Mass of individual cell.
-            chemistry: Chemistry type (string or BatteryChemistry).
-            **kwargs: Additional arguments passed to Battery constructor.
-
-        Returns:
-            Battery instance. Check warnings and info for details.
-        """
-        warnings = []
-
-        # Get chemistry configuration
-        if isinstance(chemistry, str):
-            chem = get_chemistry(chemistry)
-        else:
-            chem = chemistry
-
-        # Calculate required cells
-        target_v = target_voltage.in_units_of('V')
-        cell_v = chem.nominal_cell_voltage.in_units_of('V')
-        cells_exact = target_v / cell_v
-
-        cells_series = round(cells_exact)
-
-        # Ensure at least 1 cell
-        cells_series = max(1, cells_series)
-
-        # Calculate actual voltage
-        actual_voltage = cell_v * cells_series
-
-        # Notify if rounding occurred
-        if abs(cells_exact - cells_series) > 0.001:
-            warnings.append(
-                f"Rounded {cells_exact:.2f} cells to {cells_series}. "
-                f"Actual voltage: {actual_voltage:.1f}V (target was {target_v:.1f}V)"
-            )
-
-        return cls(
-            cells_series=cells_series,
-            cells_parallel=cells_parallel,
-            cell_capacity=cell_capacity,
-            cell_mass=cell_mass,
-            chemistry=chem,
-            warnings=warnings,
-            info={
-                'target_voltage_v': target_v,
-                'actual_voltage_v': actual_voltage,
-                'cells_exact': cells_exact,
-            },
-            **kwargs
-        )
-
-    @classmethod
-    def from_target_energy(
-        cls,
-        target_energy: Energy,
-        target_voltage: Voltage,
-        cell_capacity: Capacity,
-        cell_mass: Mass,
-        chemistry: Union[str, BatteryChemistry] = 'lithium_ion',
-        **kwargs
-    ) -> 'Battery':
-        """Create battery sized for target energy.
-
-        Args:
-            target_energy: Target energy capacity.
-            target_voltage: Target pack voltage.
-            cell_capacity: Capacity per cell.
-            cell_mass: Mass of individual cell.
-            chemistry: Chemistry type.
-            **kwargs: Additional arguments.
-
-        Returns:
-            Battery instance. Check warnings and info for details.
-        """
-        warnings = []
-
-        # First determine series cells for voltage
-        if isinstance(chemistry, str):
-            chem = get_chemistry(chemistry)
-        else:
-            chem = chemistry
-
-        target_v = target_voltage.in_units_of('V')
-        cell_v = chem.nominal_cell_voltage.in_units_of('V')
-        cells_series = math.ceil(target_v / cell_v)
-        cells_series = max(1, cells_series)
-        actual_voltage = cell_v * cells_series
-
-        if abs(target_v - actual_voltage) > 0.1:
-            warnings.append(
-                f"Adjusted voltage from {target_v:.1f}V to {actual_voltage:.1f}V "
-                f"({cells_series} cells in series)"
-            )
-
-        # Calculate required capacity
-        target_wh = target_energy.in_units_of('Wh')
-        target_ah = target_wh / actual_voltage
-        cell_ah = cell_capacity.in_units_of('Ah')
-        cells_parallel = math.ceil(target_ah / cell_ah)
-        cells_parallel = max(1, cells_parallel)
-        actual_ah = cell_ah * cells_parallel
-        actual_wh = actual_voltage * actual_ah
-
-        warnings.append(
-            f"Sized for {actual_ah:.1f}Ah capacity ({cells_parallel}P configuration), "
-            f"providing {actual_wh:.1f}Wh"
-        )
-
-        margin = (actual_wh - target_wh) / target_wh * 100
-
-        return cls(
-            cells_series=cells_series,
-            cells_parallel=cells_parallel,
-            cell_capacity=cell_capacity,
-            cell_mass=cell_mass,
-            chemistry=chem,
-            warnings=warnings,
-            info={
-                'target_energy_wh': target_wh,
-                'actual_energy_wh': actual_wh,
-                'energy_margin_percent': margin,
-                'configuration': f"{cells_series}S{cells_parallel}P",
-            },
-            **kwargs
-        )
-
+    # Dunder methods (per Policy 9)
     def __repr__(self) -> str:
         config = f"{self.cells_series}S{self.cells_parallel}P"
         return (

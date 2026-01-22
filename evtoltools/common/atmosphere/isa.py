@@ -100,6 +100,106 @@ class Atmosphere:
         else:
             self._ambiance = AmbianceAtmosphere(float(altitude_m))
 
+    # Classmethods (alternative constructors, per Policy 9)
+    @classmethod
+    def from_pressure_altitude(cls, pressure: Pressure) -> 'Atmosphere':
+        """Create atmosphere from pressure altitude.
+
+        Determines the geometric altitude that corresponds to the given
+        pressure in the standard atmosphere.
+
+        Args:
+            pressure: Atmospheric pressure
+
+        Returns:
+            Atmosphere instance at the corresponding pressure altitude
+
+        Examples:
+            >>> atm = Atmosphere.from_pressure_altitude(Pressure(50000, 'Pa'))
+            >>> print(f"Pressure altitude: {atm.altitude.to('ft')}")
+        """
+        # Use inverse calculation - binary search for altitude
+        pressure_pa = pressure.in_units_of('Pa')
+
+        # Search bounds (0 to 80 km covers ISA range)
+        h_low = 0.0
+        h_high = 80000.0
+        tolerance = 0.1  # meters
+
+        while (h_high - h_low) > tolerance:
+            h_mid = (h_low + h_high) / 2
+            p_mid = AmbianceAtmosphere(h_mid).pressure
+
+            if p_mid > pressure_pa:
+                h_low = h_mid
+            else:
+                h_high = h_mid
+
+        return cls(Altitude(h_mid, 'm'))
+
+    @classmethod
+    def from_density_altitude(cls, density: Density) -> 'Atmosphere':
+        """Create atmosphere from density altitude.
+
+        Determines the geometric altitude that corresponds to the given
+        density in the standard atmosphere.
+
+        Args:
+            density: Atmospheric density
+
+        Returns:
+            Atmosphere instance at the corresponding density altitude
+
+        Examples:
+            >>> atm = Atmosphere.from_density_altitude(Density(0.9, 'kg/m^3'))
+            >>> print(f"Density altitude: {atm.altitude.to('ft')}")
+        """
+        # Use inverse calculation - binary search for altitude
+        density_kg_m3 = density.in_units_of('kg/m^3')
+
+        # Search bounds (0 to 80 km covers ISA range)
+        h_low = 0.0
+        h_high = 80000.0
+        tolerance = 0.1  # meters
+
+        while (h_high - h_low) > tolerance:
+            h_mid = (h_low + h_high) / 2
+            rho_mid = AmbianceAtmosphere(h_mid).density
+
+            if rho_mid > density_kg_m3:
+                h_low = h_mid
+            else:
+                h_high = h_mid
+
+        return cls(Altitude(h_mid, 'm'))
+
+    @classmethod
+    def pressure_altitude(cls, pressure: Pressure) -> Altitude:
+        """Calculate pressure altitude from atmospheric pressure.
+
+        Args:
+            pressure: Atmospheric pressure
+
+        Returns:
+            Pressure altitude as Altitude quantity
+        """
+        atm = cls.from_pressure_altitude(pressure)
+        return atm.altitude
+
+    @classmethod
+    def density_altitude(cls, density: Density) -> Altitude:
+        """Calculate density altitude from atmospheric density.
+
+        Args:
+            density: Atmospheric density
+
+        Returns:
+            Density altitude as Altitude quantity
+        """
+        atm = cls.from_density_altitude(density)
+        return atm.altitude
+
+    # Properties (simplest first, per Policy 9)
     @property
     def altitude(self) -> Altitude:
         """Geometric altitude."""
@@ -109,15 +209,6 @@ class Atmosphere:
     def temperature_offset(self) -> Optional[Temperature]:
         """Temperature offset from ISA."""
         return self._temperature_offset
-
-    def _to_scalar_or_array(self, value):
-        """Convert single-element arrays to scalars, leave multi-element arrays as-is."""
-        if isinstance(value, np.ndarray):
-            # Convert 0-d arrays or 1-element 1-d arrays to scalar
-            if value.ndim == 0 or (value.ndim == 1 and value.size == 1):
-                return float(value.flat[0])
-            return value
-        return float(value)
 
     @property
     def temperature(self) -> Temperature:
@@ -239,104 +330,7 @@ class Atmosphere:
         """
         return self._to_scalar_or_array(self._ambiance.dynamic_viscosity)
 
-    @classmethod
-    def from_pressure_altitude(cls, pressure: Pressure) -> 'Atmosphere':
-        """Create atmosphere from pressure altitude.
-
-        Determines the geometric altitude that corresponds to the given
-        pressure in the standard atmosphere.
-
-        Args:
-            pressure: Atmospheric pressure
-
-        Returns:
-            Atmosphere instance at the corresponding pressure altitude
-
-        Examples:
-            >>> atm = Atmosphere.from_pressure_altitude(Pressure(50000, 'Pa'))
-            >>> print(f"Pressure altitude: {atm.altitude.to('ft')}")
-        """
-        # Use inverse calculation - binary search for altitude
-        pressure_pa = pressure.in_units_of('Pa')
-
-        # Search bounds (0 to 80 km covers ISA range)
-        h_low = 0.0
-        h_high = 80000.0
-        tolerance = 0.1  # meters
-
-        while (h_high - h_low) > tolerance:
-            h_mid = (h_low + h_high) / 2
-            p_mid = AmbianceAtmosphere(h_mid).pressure
-
-            if p_mid > pressure_pa:
-                h_low = h_mid
-            else:
-                h_high = h_mid
-
-        return cls(Altitude(h_mid, 'm'))
-
-    @classmethod
-    def from_density_altitude(cls, density: Density) -> 'Atmosphere':
-        """Create atmosphere from density altitude.
-
-        Determines the geometric altitude that corresponds to the given
-        density in the standard atmosphere.
-
-        Args:
-            density: Atmospheric density
-
-        Returns:
-            Atmosphere instance at the corresponding density altitude
-
-        Examples:
-            >>> atm = Atmosphere.from_density_altitude(Density(0.9, 'kg/m^3'))
-            >>> print(f"Density altitude: {atm.altitude.to('ft')}")
-        """
-        # Use inverse calculation - binary search for altitude
-        density_kg_m3 = density.in_units_of('kg/m^3')
-
-        # Search bounds (0 to 80 km covers ISA range)
-        h_low = 0.0
-        h_high = 80000.0
-        tolerance = 0.1  # meters
-
-        while (h_high - h_low) > tolerance:
-            h_mid = (h_low + h_high) / 2
-            rho_mid = AmbianceAtmosphere(h_mid).density
-
-            if rho_mid > density_kg_m3:
-                h_low = h_mid
-            else:
-                h_high = h_mid
-
-        return cls(Altitude(h_mid, 'm'))
-
-    @classmethod
-    def pressure_altitude(cls, pressure: Pressure) -> Altitude:
-        """Calculate pressure altitude from atmospheric pressure.
-
-        Args:
-            pressure: Atmospheric pressure
-
-        Returns:
-            Pressure altitude as Altitude quantity
-        """
-        atm = cls.from_pressure_altitude(pressure)
-        return atm.altitude
-
-    @classmethod
-    def density_altitude(cls, density: Density) -> Altitude:
-        """Calculate density altitude from atmospheric density.
-
-        Args:
-            density: Atmospheric density
-
-        Returns:
-            Density altitude as Altitude quantity
-        """
-        atm = cls.from_density_altitude(density)
-        return atm.altitude
-
+    # Dunder methods (per Policy 9)
     def __repr__(self) -> str:
         offset_str = ""
         if self._temperature_offset is not None:
@@ -350,6 +344,16 @@ class Atmosphere:
             f"T={self.temperature}, P={self.pressure}, "
             f"rho={self.density}"
         )
+
+    # Private methods (per Policy 9)
+    def _to_scalar_or_array(self, value):
+        """Convert single-element arrays to scalars, leave multi-element arrays as-is."""
+        if isinstance(value, np.ndarray):
+            # Convert 0-d arrays or 1-element 1-d arrays to scalar
+            if value.ndim == 0 or (value.ndim == 1 and value.size == 1):
+                return float(value.flat[0])
+            return value
+        return float(value)
 
 
 def atmosphere_at_altitude(

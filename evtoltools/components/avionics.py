@@ -30,14 +30,7 @@ class Avionics(BaseComponent):
         """Normalize quantity fields to SI units."""
         object.__setattr__(self, '_mass', self._mass.to_default())
 
-    @property
-    def component_type(self) -> str:
-        return 'avionics'
-
-    @property
-    def mass(self) -> Mass:
-        return self._mass
-
+    # Classmethods (alternative constructors, per Policy 9)
     @classmethod
     def from_weight_fraction(cls, empty_weight: Mass, fraction: float) -> 'Avionics':
         """Create Avionics from empty weight and mass fraction.
@@ -74,3 +67,12 @@ class Avionics(BaseComponent):
         if not 0 <= fraction <= 1:
             raise ValueError(f"Fraction must be between 0 and 1, got {fraction}")
         return empty_weight * fraction
+
+    # Properties (per Policy 9)
+    @property
+    def component_type(self) -> str:
+        return 'avionics'
+
+    @property
+    def mass(self) -> Mass:
+        return self._mass

@@ -45,6 +45,25 @@ class Motor:
         if self.max_power.magnitude <= 0:
             raise ValueError("max_power must be positive")
 
+    # Properties (per Policy 9)
+    @property
+    def max_shaft_power(self) -> Power:
+        """Maximum shaft power output at max electrical input."""
+        return self.max_power * self.efficiency
+
+    @property
+    def power_to_weight(self) -> float:
+        """Power to weight ratio (kW/kg).
+
+        Returns:
+            Power to weight ratio, or 0 if mass not specified
+        """
+        if self.mass is None:
+            return 0.0
+        ratio_pint = self.max_power / self.mass
+        return ratio_pint.to('kW/kg').magnitude
+
+    # Public methods (per Policy 9)
     def shaft_power(self, electrical_power: Power) -> Power:
         """Calculate mechanical shaft power from electrical input.
 
@@ -71,23 +90,7 @@ class Motor:
         """
         return shaft_power / self.efficiency
 
-    @property
-    def max_shaft_power(self) -> Power:
-        """Maximum shaft power output at max electrical input."""
-        return self.shaft_power(self.max_power)
-
-    @property
-    def power_to_weight(self) -> float:
-        """Power to weight ratio (kW/kg).
-
-        Returns:
-            Power to weight ratio, or 0 if mass not specified
-        """
-        if self.mass is None:
-            return 0.0
-        ratio_pint = self.max_power / self.mass
-        return ratio_pint.to('kW/kg').magnitude
-
+    # Dunder methods (per Policy 9)
     def __repr__(self) -> str:
         return (
             f"Motor(max_power={self.max_power.to('kW')}, "

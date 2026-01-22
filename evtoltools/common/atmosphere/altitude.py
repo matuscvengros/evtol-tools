@@ -181,6 +181,27 @@ class Altitude(Length):
 
         return cls(h_mid, 'm')
 
+    # Properties (per Policy 9)
+    @property
+    def agl_reference(self) -> str:
+        """Get a human-readable AGL (Above Ground Level) reference string.
+
+        Note: This assumes the altitude IS the AGL value. For MSL to AGL
+        conversion, you need to know the ground elevation.
+
+        Returns:
+            Formatted string with altitude in feet AGL
+
+        Examples:
+            >>> Altitude(1500, 'ft').agl_reference
+            '1500 ft AGL'
+        """
+        altitude_ft = self.in_units_of('ft')
+        if isinstance(altitude_ft, np.ndarray):
+            return f"{altitude_ft} ft AGL (array)"
+        return f"{altitude_ft:.0f} ft AGL"
+
+    # Public methods (simple to complex, per Policy 9)
     def to_flight_level(self) -> float:
         """Convert altitude to flight level number.
 
@@ -252,25 +273,7 @@ class Altitude(Length):
             return bool(np.all(result))
         return bool(result)
 
-    @property
-    def agl_reference(self) -> str:
-        """Get a human-readable AGL (Above Ground Level) reference string.
-
-        Note: This assumes the altitude IS the AGL value. For MSL to AGL
-        conversion, you need to know the ground elevation.
-
-        Returns:
-            Formatted string with altitude in feet AGL
-
-        Examples:
-            >>> Altitude(1500, 'ft').agl_reference
-            '1500 ft AGL'
-        """
-        altitude_ft = self.in_units_of('ft')
-        if isinstance(altitude_ft, np.ndarray):
-            return f"{altitude_ft} ft AGL (array)"
-        return f"{altitude_ft:.0f} ft AGL"
-
+    # Dunder methods (per Policy 9)
     def __repr__(self) -> str:
         """Return unambiguous string representation."""
         return f"Altitude({self.magnitude}, '{self.units}')"

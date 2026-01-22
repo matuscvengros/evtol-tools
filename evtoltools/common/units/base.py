@@ -66,42 +66,27 @@ class BaseQuantity(ABC):
         # Validate dimensionality
         self._validate_dimensionality()
 
-    def _validate_unit(self, unit: str) -> None:
-        """Validate that unit has correct dimensionality for this quantity type.
+    # Properties (simplest first, per Policy 9)
+    @property
+    def magnitude(self) -> Union[float, np.ndarray]:
+        """Get the numeric value(s) in current units.
 
-        Accepts any unit string that pint recognizes with the correct dimensionality.
+        Returns:
+            Scalar float for scalar quantities, numpy array for array quantities.
         """
-        try:
-            test_quantity = Q_(1, unit)
-        except Exception as e:
-            suggested = ALLOWED_UNITS.get(self._quantity_type, [])
-            raise ValueError(
-                f"Unit '{unit}' not recognized by pint for {self._quantity_type}. "
-                f"Suggested units: {', '.join(suggested)}"
-            ) from e
+        return self._quantity.magnitude
 
-        if self._dimensionality is not None:
-            # Direct comparison - no string parsing needed
-            if test_quantity.dimensionality != self._dimensionality:
-                suggested = ALLOWED_UNITS.get(self._quantity_type, [])
-                raise ValueError(
-                    f"Unit '{unit}' has wrong dimensionality for {self._quantity_type}. "
-                    f"Expected {dict(self._dimensionality)}, got {dict(test_quantity.dimensionality)}. "
-                    f"Suggested units: {', '.join(suggested)}"
-                )
+    @property
+    def units(self) -> str:
+        """Get the current unit as a string."""
+        return str(self._quantity.units)
 
-    def _validate_dimensionality(self) -> None:
-        """Validate that the quantity has the correct dimensionality."""
-        if self._dimensionality is not None:
-            # Direct comparison - no string parsing needed
-            actual = self._quantity.dimensionality
+    @property
+    def value(self) -> Union[float, np.ndarray]:
+        """Alias for magnitude."""
+        return self.magnitude
 
-            if actual != self._dimensionality:
-                raise ValueError(
-                    f"Expected dimensionality {dict(self._dimensionality)} for {self._quantity_type}, "
-                    f"got {dict(actual)}"
-                )
-
+    # Public methods (simple to complex, per Policy 9)
     def to(self, unit: str) -> 'BaseQuantity':
         """Convert to a different unit, returning a new instance.
 
@@ -122,25 +107,6 @@ class BaseQuantity(ABC):
         """Convert to the default unit for this quantity type."""
         default_unit = DEFAULT_UNITS[self._quantity_type]
         return self.to(default_unit)
-
-    @property
-    def magnitude(self) -> Union[float, np.ndarray]:
-        """Get the numeric value(s) in current units.
-
-        Returns:
-            Scalar float for scalar quantities, numpy array for array quantities.
-        """
-        return self._quantity.magnitude
-
-    @property
-    def units(self) -> str:
-        """Get the current unit as a string."""
-        return str(self._quantity.units)
-
-    @property
-    def value(self) -> Union[float, np.ndarray]:
-        """Alias for magnitude."""
-        return self.magnitude
 
     def in_units_of(self, unit: str) -> Union[float, np.ndarray]:
         """Get the numeric value(s) in specified units without creating new instance.
@@ -300,3 +266,40 @@ class BaseQuantity(ABC):
             f"{mass:.2f~}"  -> "1500.00 kg" (compact)
         """
         return format(self._quantity, format_spec)
+
+    # Private helper methods
+    def _validate_unit(self, unit: str) -> None:
+        """Validate that unit has correct dimensionality for this quantity type.
+
+        Accepts any unit string that pint recognizes with the correct dimensionality.
+        """
+        try:
+            test_quantity = Q_(1, unit)
+        except Exception as e:
+            suggested = ALLOWED_UNITS.get(self._quantity_type, [])
+            raise ValueError(
+                f"Unit '{unit}' not recognized by pint for {self._quantity_type}. "
+                f"Suggested units: {', '.join(suggested)}"
+            ) from e
+
+        if self._dimensionality is not None:
+            # Direct comparison - no string parsing needed
+            if test_quantity.dimensionality != self._dimensionality:
+                suggested = ALLOWED_UNITS.get(self._quantity_type, [])
+                raise ValueError(
+                    f"Unit '{unit}' has wrong dimensionality for {self._quantity_type}. "
+                    f"Expected {dict(self._dimensionality)}, got {dict(test_quantity.dimensionality)}. "
+                    f"Suggested units: {', '.join(suggested)}"
+                )
+
+    def _validate_dimensionality(self) -> None:
+        """Validate that the quantity has the correct dimensionality."""
+        if self._dimensionality is not None:
+            # Direct comparison - no string parsing needed
+            actual = self._quantity.dimensionality
+
+            if actual != self._dimensionality:
+                raise ValueError(
+                    f"Expected dimensionality {dict(self._dimensionality)} for {self._quantity_type}, "
+                    f"got {dict(actual)}"
+                )

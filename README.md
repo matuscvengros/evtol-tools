@@ -22,23 +22,27 @@ eVTOL aircraft design requires integrating multiple engineering disciplines - pr
 - **Tip speed limits** - Mach number constraints, maximum RPM calculations
 
 ### Battery Modeling
-- **Cell configuration** - Series/parallel string design
-- **Sizing methods** - From target energy, voltage, or capacity
-- **Chemistry support** - Lithium-ion, NMC, LFP cell parameters
-- **Power limits** - C-rating based charge/discharge constraints
-- **Mass calculations** - Cells plus BMS/packaging overhead
-- **Discharge curves** - Voltage vs SoC and C-rate modeling
-- **Internal resistance** - Series/parallel pack resistance calculations
-- **Heat generation** - I²R losses for thermal analysis
-- **Charge modeling** - CC-CV profiles with efficiency modeling
-- **Thermal framework** - Temperature limits, derating, and thermal dynamics
+- **Cell configuration** - Series/parallel string design with automatic sizing
+- **Sizing methods** - From target energy, voltage, or capacity requirements
+- **Chemistry support** - Lithium-ion, NMC, LFP, LiPo with validated cell parameters
+- **Power limits** - C-rating based charge/discharge constraints with thermal derating
+- **Mass calculations** - Cells plus BMS/packaging overhead (configurable)
+- **Discharge curves** - Voltage vs SoC and C-rate modeling (analytical and lookup table)
+- **Internal resistance** - Series/parallel pack resistance calculations with SoC dependence
+- **Heat generation** - I²R losses for thermal analysis and cooling system design
+- **Charge modeling** - CC-CV profiles with efficiency losses and current tapering
+- **Thermal framework** - Temperature limits, power derating, and lumped thermal dynamics
+- **Model flexibility** - Abstract interfaces for custom discharge and charge models
+- **PyBaMM integration** - Optional high-fidelity electrochemical modeling support
 
 ### Atmospheric Calculations
-- **ISA model** - International Standard Atmosphere (0-80 km altitude)
-- **Temperature offsets** - Hot day (ISA+) and cold day (ISA-) analysis
-- **Altitude effects** - Density impact on power, tip speeds, performance
-- **Pressure/density altitude** - Conversion between altitude references
-- **NumPy array support** - Batch calculations for altitude profiles
+- **ISA model** - International Standard Atmosphere (0-80 km altitude) via ICAO 1993 standard
+- **Temperature offsets** - Hot day (ISA+) and cold day (ISA-) analysis for certification scenarios
+- **Altitude effects** - Density impact on power, tip speeds, performance degradation
+- **Pressure/density altitude** - Conversion between altitude references and standard day corrections
+- **NumPy array support** - Batch calculations for altitude profiles and mission segments
+- **Physical properties** - Temperature, pressure, density, speed of sound at any altitude
+- **Array operations** - Vectorised calculations for flight profile analysis
 
 ### Type-Safe Units System
 - **20+ physical quantities** - Mass, length, velocity, power, energy, etc.
@@ -157,89 +161,320 @@ battery = Battery.from_target_voltage(
 
 ### Battery Discharge and Thermal Modeling
 
+The battery module provides comprehensive discharge voltage modeling, thermal analysis, and charging behavior.
+
+#### Basic Discharge Modeling
+
 ```python
 from evtoltools.common import Capacity, Mass, Current, Temperature, Power, Time
 from evtoltools.components import Battery
-from evtoltools.components.battery import ThermalLimits, SimpleThermalModel
 
-# Create battery pack
+# Create battery pack (14S4P configuration)
 battery = Battery(
     cells_series=14,
     cells_parallel=4,
     cell_capacity=Capacity(5, 'Ah'),
     cell_mass=Mass(50, 'g'),
-    chemistry='lithium_ion'
+    chemistry='lithium_ion'  # or 'nmc', 'lfp', 'lipo'
 )
 
-# C-rate conversions
+print(f"Configuration:     {battery.cells_series}S{battery.cells_parallel}P")
+print(f"Pack voltage:      {battery.nominal_voltage}")
+print(f"Pack capacity:     {battery.total_capacity.to('Ah')}")
+print(f"Pack energy:       {battery.energy_capacity.to('kWh')}")
+print(f"Pack resistance:   {battery.internal_resistance.to('mohm')}")
+print(f"Pack mass:         {battery.mass.to('kg')}")
+
+# C-rate conversions (C-rate is current relative to capacity)
 current_1c = battery.current_from_c_rate(1.0)  # 20A for 20Ah pack
+current_2c = battery.current_from_c_rate(2.0)  # 40A (aggressive discharge)
 c_rate = battery.c_rate_from_current(Current(40, 'A'))  # 2.0C
+print(f"1C current: {current_1c}")
+print(f"40A is {c_rate:.1f}C discharge rate")
 
-# Discharge voltage varies with SoC and C-rate
-v_high_soc = battery.get_voltage(soc=0.9, c_rate=1.0)
-v_low_soc = battery.get_voltage(soc=0.2, c_rate=1.0)
-v_high_c = battery.get_voltage(soc=0.5, c_rate=3.0)  # Lower due to I*R drop
+# Discharge voltage varies with State of Charge (SoC) and C-rate
+v_full = battery.get_voltage(soc=1.0, c_rate=0.0)  # Open circuit, full charge
+v_half = battery.get_voltage(soc=0.5, c_rate=1.0)  # 50% SoC, 1C discharge
+v_low = battery.get_voltage(soc=0.2, c_rate=1.0)   # 20% SoC, 1C discharge
 
-# Internal resistance (series cells add, parallel cells reduce)
-pack_resistance = battery.internal_resistance  # Pack R = (cell_R * series) / parallel
+print(f"Voltage at 100% SoC, no load:  {v_full.to('V')}")
+print(f"Voltage at 50% SoC, 1C:        {v_half.to('V')}")
+print(f"Voltage at 20% SoC, 1C:        {v_low.to('V')}")
 
-# I²R heat generation
-heat = battery.heat_generation_rate(Current(50, 'A'))
-print(f"Heat at 50A: {heat.in_units_of('W'):.1f} W")
+# Higher C-rate causes more I*R voltage drop
+v_1c = battery.get_voltage(soc=0.5, c_rate=1.0)  # 1C discharge
+v_3c = battery.get_voltage(soc=0.5, c_rate=3.0)  # 3C discharge (aggressive)
+voltage_sag = v_1c - v_3c
+print(f"Voltage sag from 1C to 3C: {voltage_sag.to('V')}")
 
-# Charge model with CC-CV profile
-charge_current = battery.get_charge_current(soc=0.3)  # Full current in CC phase
-charge_current_cv = battery.get_charge_current(soc=0.9)  # Tapered in CV phase
-charge_time = battery.time_to_charge(start_soc=0.2, end_soc=0.8)  # hours
+# Internal resistance scaling
+# - Series cells ADD resistance: R_total = R_cell * N_series
+# - Parallel cells REDUCE resistance: R_total = R_series / N_parallel
+cell_r = battery.chemistry.internal_resistance
+pack_r = battery.internal_resistance
+print(f"Cell resistance:  {cell_r.to('mohm')}")
+print(f"Pack resistance:  {pack_r.to('mohm')}")
+print(f"Scaling factor:   {battery.cells_series}/{battery.cells_parallel} = {pack_r/cell_r:.2f}")
+```
 
-# Thermal limits and derating
+#### Heat Generation and Thermal Analysis
+
+```python
+from evtoltools.components.battery import ThermalLimits, SimpleThermalModel
+
+# I²R heat generation (resistive losses during discharge/charge)
+# Heat power = I² * R
+current_discharge = Current(40, 'A')  # 2C discharge
+heat_40a = battery.heat_generation_rate(current_discharge)
+heat_80a = battery.heat_generation_rate(Current(80, 'A'))  # 4C
+
+print(f"Heat generation at 40A:  {heat_40a.in_units_of('W'):.1f} W")
+print(f"Heat generation at 80A:  {heat_80a.in_units_of('W'):.1f} W")
+print(f"Heat scales with I²:     {(80/40)**2:.1f}x increase")
+
+# SoC-dependent resistance (if discharge model supports it)
+r_high_soc = battery.get_internal_resistance(soc=0.9)
+r_low_soc = battery.get_internal_resistance(soc=0.2)
+print(f"Resistance at 90% SoC: {r_high_soc.to('mohm')}")
+print(f"Resistance at 20% SoC: {r_low_soc.to('mohm')}")
+
+# Thermal operating limits
 limits = ThermalLimits(
-    max_discharge_temp=Temperature(60, 'degC'),
-    derate_temp=Temperature(40, 'degC'),
-    min_temp=Temperature(-20, 'degC')
+    max_discharge_temp=Temperature(60, 'degC'),  # Absolute max
+    max_charge_temp=Temperature(45, 'degC'),     # Lower for charging
+    derate_temp=Temperature(40, 'degC'),         # Start reducing power here
+    min_temp=Temperature(-20, 'degC')            # Cold weather limit
 )
-derate_factor = limits.get_derate_factor(Temperature(50, 'degC'))  # 50% power
 
-# Simple thermal model for mission analysis
+# Check if temperature is safe
+temp_operating = Temperature(35, 'degC')
+is_safe_discharge = limits.is_within_limits(temp_operating, is_charging=False)
+is_safe_charge = limits.is_within_limits(temp_operating, is_charging=True)
+print(f"Safe for discharge at {temp_operating}: {is_safe_discharge}")
+print(f"Safe for charge at {temp_operating}:    {is_safe_charge}")
+
+# Power derating at high temperature (linear between derate_temp and max_temp)
+temp_warm = Temperature(40, 'degC')   # At derate threshold
+temp_hot = Temperature(50, 'degC')    # Between derate and max
+temp_max = Temperature(60, 'degC')    # At maximum
+
+derate_40c = limits.get_derate_factor(temp_warm)  # 1.0 (100% power)
+derate_50c = limits.get_derate_factor(temp_hot)   # 0.5 (50% power)
+derate_60c = limits.get_derate_factor(temp_max)   # 0.0 (no power)
+
+print(f"Power available at 40°C: {derate_40c * 100:.0f}%")
+print(f"Power available at 50°C: {derate_50c * 100:.0f}%")
+print(f"Power available at 60°C: {derate_60c * 100:.0f}%")
+
+# Cold temperature derating (reduced performance below 0°C)
+temp_cold = Temperature(-10, 'degC')
+cold_derate = limits.get_cold_derate_factor(temp_cold)
+print(f"Power available at -10°C: {cold_derate * 100:.0f}%")
+
+# Lumped thermal model (simple but effective for mission analysis)
 thermal_model = SimpleThermalModel(
-    mass=battery.mass,
-    specific_heat=1000,  # J/kg/K for Li-ion
-    cooling_coefficient=10.0  # W/K
+    mass=battery.mass,                  # Battery thermal mass
+    specific_heat=1000,                 # J/(kg*K) - typical for Li-ion
+    cooling_coefficient=10.0            # W/K - depends on cooling design
 )
+
+# Predict temperature rise during discharge
+initial_temp = Temperature(25, 'degC')
+heat_rate = Power(100, 'W')            # From I²R losses
+duration = Time(30, 'min')
+ambient_temp = Temperature(25, 'degC')
 
 final_temp = thermal_model.temperature_after(
+    initial_temp=initial_temp,
+    heat_rate=heat_rate,
+    duration=duration,
+    ambient_temp=ambient_temp
+)
+print(f"Initial temperature:  {initial_temp.in_units_of('degC'):.1f}°C")
+print(f"Final temperature:    {final_temp.in_units_of('degC'):.1f}°C")
+print(f"Temperature rise:     {(final_temp - initial_temp).in_units_of('K'):.1f}K")
+
+# Steady-state temperature (equilibrium between generation and cooling)
+steady_temp = thermal_model.steady_state_temperature(
+    heat_rate=Power(150, 'W'),
+    ambient_temp=Temperature(30, 'degC')
+)
+print(f"Steady-state temperature: {steady_temp.in_units_of('degC'):.1f}°C")
+
+# Time to reach temperature limit
+time_to_limit = thermal_model.time_to_temperature(
     initial_temp=Temperature(25, 'degC'),
+    target_temp=Temperature(50, 'degC'),
     heat_rate=Power(100, 'W'),
-    duration=Time(30, 'min'),
     ambient_temp=Temperature(25, 'degC')
 )
-print(f"Battery temperature after 30 min: {final_temp.in_units_of('degC'):.1f} degC")
+print(f"Time to 50°C: {time_to_limit.to('min')}")
+```
+
+#### Charge Modeling (CC-CV Profile)
+
+```python
+from evtoltools.components.battery import SimpleChargeModel
+
+# Battery uses CC-CV (Constant Current - Constant Voltage) charging
+# - CC phase: constant current up to ~80% SoC
+# - CV phase: constant voltage, current tapers exponentially
+
+# Get recommended charge current at different SoC levels
+charge_30 = battery.get_charge_current(soc=0.3)  # CC phase: full current
+charge_85 = battery.get_charge_current(soc=0.85) # CV phase: tapered current
+charge_95 = battery.get_charge_current(soc=0.95) # CV phase: low current
+
+print(f"Charge current at 30% SoC:  {charge_30.to('A')}")
+print(f"Charge current at 85% SoC:  {charge_85.to('A')}")
+print(f"Charge current at 95% SoC:  {charge_95.to('A')}")
+
+# Charging efficiency (decreases at high C-rate and high SoC)
+eff_low_soc = battery.get_charge_efficiency(soc=0.3, c_rate=1.0)
+eff_high_soc = battery.get_charge_efficiency(soc=0.9, c_rate=1.0)
+eff_high_rate = battery.get_charge_efficiency(soc=0.5, c_rate=2.0)
+
+print(f"Charge efficiency at 30% SoC, 1C:  {eff_low_soc * 100:.1f}%")
+print(f"Charge efficiency at 90% SoC, 1C:  {eff_high_soc * 100:.1f}%")
+print(f"Charge efficiency at 50% SoC, 2C:  {eff_high_rate * 100:.1f}%")
+
+# Estimate charge time (20% to 80% is typical fast-charge window)
+charge_time_2080 = battery.time_to_charge(start_soc=0.2, end_soc=0.8)
+charge_time_full = battery.time_to_charge(start_soc=0.2, end_soc=1.0)
+
+print(f"Charge time 20% → 80%:  {charge_time_2080 * 60:.1f} minutes")
+print(f"Charge time 20% → 100%: {charge_time_full * 60:.1f} minutes")
+print(f"Last 20% takes:         {(charge_time_full - charge_time_2080) * 60:.1f} min (CV tapering)")
+
+# Custom charge model with different parameters
+custom_charge = SimpleChargeModel(
+    cc_cv_transition_soc=0.75,      # Earlier CV transition
+    cv_taper_factor=4.0,             # Faster taper
+    base_efficiency=0.97,            # Higher base efficiency
+    efficiency_c_rate_factor=0.015   # Less C-rate penalty
+)
+battery.set_charge_model(custom_charge)
+new_charge_time = battery.time_to_charge(start_soc=0.2, end_soc=0.8)
+print(f"Charge time with custom model: {new_charge_time * 60:.1f} minutes")
+```
+
+#### Advanced Discharge Models
+
+```python
+from evtoltools.components.battery import (
+    AnalyticalDischargeModel,
+    LookupTableDischargeModel,
+    load_discharge_model
+)
+import numpy as np
+
+# Default: Analytical model (V = V_oc(SoC) - I*R)
+# Fast computation, good for preliminary design
+default_model = battery.discharge_model
+print(f"Default model type: {type(default_model).__name__}")
+
+# Lookup table model for higher accuracy
+# Pre-computed from PyBaMM simulations or test data
+soc_points = np.linspace(0, 1, 21)      # 0%, 5%, 10%, ..., 100%
+c_rate_points = np.array([0.1, 0.5, 1.0, 2.0, 3.0])
+
+# Voltage data from measurements or simulation (21 × 5 array)
+# In practice, populate this from real data
+voltage_data = np.zeros((21, 5))
+for i, soc in enumerate(soc_points):
+    for j, c_rate in enumerate(c_rate_points):
+        # Simplified model for demonstration
+        v_oc = 2.8 + soc * 1.4  # Linear OCV curve
+        v_drop = c_rate * 0.05   # I*R drop
+        voltage_data[i, j] = v_oc - v_drop
+
+lookup_model = LookupTableDischargeModel(
+    soc_points=soc_points,
+    c_rate_points=c_rate_points,
+    voltage_data=voltage_data,
+    v_min=Voltage(2.8, 'V')
+)
+
+# Apply the lookup table model
+battery.set_discharge_model(lookup_model)
+v_lookup = battery.get_voltage(soc=0.6, c_rate=1.5)  # Interpolated from table
+print(f"Voltage from lookup table: {v_lookup.to('V')}")
+
+# Load model by chemistry name (returns analytical model with chemistry parameters)
+li_ion_model = load_discharge_model('lithium_ion')
+nmc_model = load_discharge_model('nmc')
+lfp_model = load_discharge_model('lfp')
+
+print(f"Li-ion nominal voltage: {li_ion_model.v_nominal}")
+print(f"NMC nominal voltage:    {nmc_model.v_nominal}")
+print(f"LFP nominal voltage:    {lfp_model.v_nominal}")
 ```
 
 ### Atmospheric Calculations
 
+The ISA (International Standard Atmosphere) model provides accurate atmospheric properties for performance analysis and mission planning.
+
 ```python
-from evtoltools.common import Atmosphere, Length, Temperature
+from evtoltools.common import Atmosphere, Altitude, Temperature, Pressure, Density
+import numpy as np
 
 # Standard atmosphere at 5000 ft
-atm = Atmosphere(Length(5000, 'ft'))
-print(f"Temperature: {atm.temperature.to('degC')}")
-print(f"Pressure:    {atm.pressure.to('kPa')}")
-print(f"Density:     {atm.density.to('kg/m^3')}")
+atm = Atmosphere(Altitude(5000, 'ft'))
+print(f"Temperature:     {atm.temperature.to('degC')}")
+print(f"Pressure:        {atm.pressure.to('kPa')}")
+print(f"Density:         {atm.density.to('kg/m^3')}")
+print(f"Speed of sound:  {atm.speed_of_sound.to('m/s')}")
 
-# Hot day analysis (ISA + 20K)
+# Hot day analysis (ISA+20K) - critical for certification
 atm_hot = Atmosphere(
-    altitude=Length(5000, 'ft'),
+    altitude=Altitude(5000, 'ft'),
     temperature_offset=Temperature(20, 'K')
 )
-print(f"Hot day density: {atm_hot.density.to('kg/m^3')}")
+print(f"Hot day temperature: {atm_hot.temperature.to('degC')}")
+print(f"Hot day density:     {atm_hot.density.to('kg/m^3')}")  # Lower density
+print(f"Density reduction:   {(1 - atm_hot.density/atm.isa_density) * 100:.1f}%")
 
-# Calculate hover power at altitude
-power_at_altitude = propulsion.hover_electrical_power(
-    weight,
-    atmosphere=atm_hot
+# Cold day analysis (ISA-15K)
+atm_cold = Atmosphere(
+    altitude=Altitude(2000, 'm'),
+    temperature_offset=Temperature(-15, 'K')
 )
-print(f"Power required: {power_at_altitude.to('kW')}")
+print(f"Cold day density: {atm_cold.density.to('kg/m^3')}")  # Higher density
+
+# Sea level reference
+from evtoltools.common import sea_level_atmosphere
+atm_sl = sea_level_atmosphere()  # Or Atmosphere(Altitude.sea_level())
+print(f"Sea level: {atm_sl.temperature}, {atm_sl.density}")
+
+# Pressure altitude conversion (what altimeter reads)
+atm_from_press = Atmosphere.from_pressure_altitude(Pressure(70000, 'Pa'))
+print(f"Pressure altitude: {atm_from_press.altitude.to('ft')}")
+
+# Density altitude conversion (altitude for given air density)
+atm_from_dens = Atmosphere.from_density_altitude(Density(1.0, 'kg/m^3'))
+print(f"Density altitude: {atm_from_dens.altitude.to('ft')}")
+
+# Calculate hover power at altitude and temperature
+power_standard = propulsion.hover_electrical_power(weight, atmosphere=atm)
+power_hot_day = propulsion.hover_electrical_power(weight, atmosphere=atm_hot)
+print(f"Power required (ISA):      {power_standard.to('kW')}")
+print(f"Power required (ISA+20):   {power_hot_day.to('kW')}")
+print(f"Power increase: {(power_hot_day/power_standard - 1) * 100:.1f}%")
+
+# Array support for mission profile analysis
+altitudes_ft = np.array([0, 1000, 2000, 3000, 4000, 5000])
+altitudes = Altitude(altitudes_ft, 'ft')
+atm_profile = Atmosphere(altitudes)
+
+# Access properties as arrays
+temps = atm_profile.temperature  # Array of temperatures
+densities = atm_profile.density  # Array of densities
+print(f"Altitude profile densities: {densities.to('kg/m^3')}")
+
+# Flight level convenience
+cruise_alt = Altitude.from_flight_level(100)  # FL100 = 10,000 ft
+atm_cruise = Atmosphere(cruise_alt)
+print(f"Cruise at {cruise_alt}: {atm_cruise.density}")
 ```
 
 ### Type-Safe Units
@@ -385,18 +620,109 @@ At T_derate < T < T_max:  P_available = P_max × (T_max - T) / (T_max - T_derate
 At T > T_max:        P_available = 0
 ```
 
-### Atmospheric Effects
+### International Standard Atmosphere (ISA) Model
 
-Density decreases with altitude, affecting performance:
+The toolkit uses the ICAO 1993 International Standard Atmosphere model for atmospheric property calculations:
 
 ```
-Power ∝ 1/sqrt(ρ)   (hover power increases at altitude)
-v_induced ∝ 1/sqrt(ρ) (downwash velocity increases)
-V_tip_max = M_limit × a(h)  (tip speed limit decreases)
+Temperature:  T(h) = T_0 + L × h  (troposphere, h < 11 km)
+              T(h) = 216.65 K     (stratosphere, 11 km < h < 20 km)
+
+Pressure:     P(h) = P_0 × (T(h)/T_0)^(-g/(L*R))  (troposphere)
+
+Density:      ρ = P / (R × T)  (ideal gas law)
+
+Speed of sound: a = sqrt(γ × R × T)
 
 where:
+  T_0 = 288.15 K (15°C) - sea level temperature
+  P_0 = 101325 Pa - sea level pressure
+  ρ_0 = 1.225 kg/m³ - sea level density
+  L = -0.0065 K/m - temperature lapse rate (troposphere)
+  R = 287.05 J/(kg*K) - specific gas constant for dry air
+  γ = 1.4 - ratio of specific heats
+  g = 9.80665 m/s² - gravitational acceleration
+```
+
+**Temperature Offset (ISA±ΔT)**
+
+For hot/cold day analysis, temperature is adjusted while pressure follows standard altitude:
+
+```
+T_offset(h) = T_ISA(h) + ΔT
+ρ_offset(h) = P_ISA(h) / (R × T_offset(h))
+
+Example: ISA+20K at sea level
+  T = 288.15 + 20 = 308.15 K (35°C)
+  ρ = 101325 / (287.05 × 308.15) = 1.145 kg/m³ (6.5% reduction)
+```
+
+**Altitude References**
+
+- **Geometric altitude**: Height above sea level (what GPS reads)
+- **Pressure altitude**: Altitude corresponding to a given pressure in ISA (what altimeter reads)
+- **Density altitude**: Altitude corresponding to a given density in ISA (what aircraft performs at)
+
+```
+On a hot day:
+  Geometric altitude = 5000 ft
+  Pressure altitude ≈ 5000 ft (altimeter reading)
+  Density altitude > 5000 ft (reduced density, worse performance)
+```
+
+**Array Support for Flight Profiles**
+
+The atmosphere model supports NumPy arrays for efficient mission analysis:
+
+```python
+import numpy as np
+altitudes = Altitude(np.array([0, 1000, 2000, 3000, 4000, 5000]), 'ft')
+atm = Atmosphere(altitudes)
+# All properties (temperature, pressure, density, etc.) are arrays
+densities = atm.density.magnitude  # Array of density values
+```
+
+### Atmospheric Effects on eVTOL Performance
+
+Density decreases with altitude, significantly affecting performance:
+
+```
+Hover Power:        P ∝ 1/sqrt(ρ)
+  At 5000 ft (ρ = 1.055 kg/m³): P increases by ~7% vs sea level
+  At 10000 ft (ρ = 0.905 kg/m³): P increases by ~17% vs sea level
+
+Induced Velocity:   v_induced ∝ 1/sqrt(ρ)
+  Higher downwash at altitude for same thrust
+
+Tip Speed Limit:    V_tip_max = M_limit × a(h)
+  Speed of sound decreases with altitude
+  Mach number constraints become more restrictive
+
+Rotor Efficiency:   FM typically decreases slightly with altitude
+  Compressibility effects at higher Mach numbers
+
+where:
+  ρ = air density
   a(h) = speed of sound at altitude h
   M_limit = tip Mach limit (typically 0.7-0.9)
+  FM = figure of merit (rotor efficiency)
+```
+
+**Hot Day Performance Degradation**
+
+Temperature offsets compound altitude effects:
+
+```
+Example: 5000 ft, ISA+20K
+  Standard density at 5000 ft: ρ = 1.055 kg/m³
+  Hot day density:            ρ = 0.985 kg/m³ (6.6% reduction)
+  Combined effect:            Power increase ≈ 13% vs sea level ISA
+
+This is critical for:
+  - Hover ceiling calculations
+  - Maximum payload determination
+  - Energy consumption on hot days
+  - Certification requirements (often require ISA+15K or ISA+20K)
 ```
 
 ## Implemented Physical Quantities
@@ -465,16 +791,19 @@ Run with: `python examples/vehicle_weight_calculator.py`
 evtol-tools/
 ├── evtoltools/                   # Main package
 │   ├── common/                   # Units system and atmosphere
-│   │   ├── base.py               # BaseQuantity abstract class
-│   │   ├── registry.py           # Pint UnitRegistry singleton
-│   │   ├── config.py             # Default and allowed units
-│   │   ├── atmosphere.py         # ISA atmosphere model
-│   │   └── quantities/           # 20+ physical quantity types
-│   │       ├── mass.py
-│   │       ├── length.py
-│   │       ├── velocity.py
-│   │       ├── power.py
-│   │       └── ... (and more)
+│   │   ├── units/                # Type-safe units system
+│   │   │   ├── base.py           # BaseQuantity abstract class
+│   │   │   ├── registry.py       # Pint UnitRegistry singleton
+│   │   │   ├── config.py         # Default and allowed units
+│   │   │   └── quantities/       # 20+ physical quantity types
+│   │   │       ├── mass.py
+│   │   │       ├── length.py
+│   │   │       ├── velocity.py
+│   │   │       ├── power.py
+│   │   │       └── ... (and more)
+│   │   └── atmosphere/           # ISA atmosphere model
+│   │       ├── isa.py            # Atmosphere class, ISA calculations
+│   │       └── altitude.py       # Altitude quantity with flight level support
 │   └── components/               # Vehicle component models
 │       ├── base.py               # BaseComponent class
 │       ├── payload.py            # Payload component
@@ -611,7 +940,7 @@ from evtoltools.common import (
 
 # Atmosphere
 from evtoltools.common import (
-    Atmosphere, atmosphere_at_altitude, sea_level_atmosphere,
+    Atmosphere, Altitude, atmosphere_at_altitude, sea_level_atmosphere,
     ISA_SEA_LEVEL_TEMPERATURE, ISA_SEA_LEVEL_PRESSURE,
     ISA_SEA_LEVEL_DENSITY, ISA_SEA_LEVEL_SPEED_OF_SOUND
 )
@@ -635,6 +964,15 @@ from evtoltools.common import in_units_of  # Extract values from quantities
 ```
 
 ### Key Classes
+
+**Altitude(value, unit)** - Semantic wrapper around Length for altitudes
+- `sea_level()` - Create altitude at sea level (classmethod)
+- `from_flight_level(fl)` - Create from flight level notation (FL100 = 10,000 ft)
+- `from_pressure(pressure)` - Create from atmospheric pressure
+- `from_density(density)` - Create from atmospheric density
+- `to_flight_level()` - Convert to flight level number
+- `is_in_troposphere()` - Check if below 11 km
+- `agl_reference` - Human-readable AGL string
 
 **Atmosphere(altitude, temperature_offset=None)**
 - `temperature` - Atmospheric temperature
