@@ -220,9 +220,8 @@ class PropulsionSystem(BaseComponent):
         Returns:
             Power loading in N/W
         """
-        thrust_n = thrust.in_units_of('N')
-        power_w = self.total_max_shaft_power.in_units_of('W')
-        return thrust_n / power_w
+        ratio_pint = thrust / self.total_max_shaft_power
+        return ratio_pint.to('N/W').magnitude
 
     def induced_velocity(
         self,

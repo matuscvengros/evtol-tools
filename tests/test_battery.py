@@ -544,7 +544,7 @@ class TestBatteryFromTargetEnergy:
             chemistry='lithium_ion',
         )
         # Should have enough capacity for 1kWh
-        assert battery.energy_capacity.in_units_of('kWh') >= 1.0
+        assert battery.energy_capacity >= Energy(1, 'kWh')
 
     def test_info_contains_energy_info(self):
         battery = Battery.from_target_energy(

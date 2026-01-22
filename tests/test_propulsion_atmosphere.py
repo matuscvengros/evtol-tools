@@ -43,7 +43,7 @@ class TestPropellerAtmosphereIntegration:
         tip_5000m = prop.max_tip_speed(atmosphere=Altitude(5000, 'm'))
 
         # Speed of sound decreases with altitude in troposphere
-        assert tip_5000m.in_units_of('m/s') < tip_sea_level.in_units_of('m/s')
+        assert tip_5000m < tip_sea_level
 
     def test_max_angular_velocity_with_atmosphere(self):
         """Test max_angular_velocity with atmosphere."""
@@ -53,7 +53,7 @@ class TestPropellerAtmosphereIntegration:
         omega_5k = prop.max_angular_velocity(atmosphere=Altitude(5000, 'm'))
 
         # Max angular velocity decreases at altitude
-        assert omega_5k.in_units_of('rad/s') < omega_sl.in_units_of('rad/s')
+        assert omega_5k < omega_sl
 
     def test_tip_mach_number_with_atmosphere(self):
         """Test tip_mach_number with atmosphere."""
@@ -112,7 +112,7 @@ class TestPropulsionSystemAtmosphereIntegration:
         power = quad_rotor.hover_power_ideal(thrust, atmosphere=Altitude(5000, 'm'))
 
         # Should work with altitude directly
-        assert power.in_units_of('W') > 0
+        assert power.magnitude > 0
 
     def test_hover_power_increases_with_altitude(self, quad_rotor):
         """Test that hover power increases with altitude (lower density)."""
@@ -122,7 +122,7 @@ class TestPropulsionSystemAtmosphereIntegration:
         power_5k = quad_rotor.hover_power_ideal(thrust, atmosphere=Altitude(5000, 'm'))
 
         # Lower density at altitude requires more power
-        assert power_5k.in_units_of('W') > power_sl.in_units_of('W')
+        assert power_5k > power_sl
 
     def test_hover_shaft_power_with_atmosphere(self, quad_rotor):
         """Test hover_shaft_power with atmosphere."""
@@ -133,7 +133,7 @@ class TestPropulsionSystemAtmosphereIntegration:
         ideal_power = quad_rotor.hover_power_ideal(thrust, atmosphere=atm)
 
         # Shaft power should be higher than ideal (accounting for FM)
-        assert shaft_power.in_units_of('W') > ideal_power.in_units_of('W')
+        assert shaft_power > ideal_power
 
     def test_hover_electrical_power_with_atmosphere(self, quad_rotor):
         """Test hover_electrical_power with atmosphere."""
@@ -144,7 +144,7 @@ class TestPropulsionSystemAtmosphereIntegration:
         shaft_power = quad_rotor.hover_shaft_power(thrust, atmosphere=atm)
 
         # Electrical power should be higher than shaft (motor efficiency)
-        assert elec_power.in_units_of('W') > shaft_power.in_units_of('W')
+        assert elec_power > shaft_power
 
     def test_induced_velocity_with_atmosphere(self, quad_rotor):
         """Test induced_velocity with atmosphere."""
@@ -154,7 +154,7 @@ class TestPropulsionSystemAtmosphereIntegration:
         vi_5k = quad_rotor.induced_velocity(thrust, atmosphere=Altitude(5000, 'm'))
 
         # Lower density = higher induced velocity
-        assert vi_5k.in_units_of('m/s') > vi_sl.in_units_of('m/s')
+        assert vi_5k > vi_sl
 
     def test_max_tip_speed_with_atmosphere(self, quad_rotor):
         """Test max_tip_speed with atmosphere."""
@@ -162,7 +162,7 @@ class TestPropulsionSystemAtmosphereIntegration:
         tip_5k = quad_rotor.max_tip_speed(atmosphere=Altitude(5000, 'm'))
 
         # Lower speed of sound at altitude = lower max tip speed
-        assert tip_5k.in_units_of('m/s') < tip_sl.in_units_of('m/s')
+        assert tip_5k < tip_sl
 
     def test_atmosphere_priority_over_explicit_density(self, quad_rotor):
         """Test that atmosphere parameter takes priority over air_density."""
@@ -222,7 +222,7 @@ class TestAtmosphereWithTemperatureOffset:
         power_hot = evtol_system.hover_power_ideal(thrust, atmosphere=hot_day)
 
         # Hot day has lower density, requires more power
-        assert power_hot.in_units_of('W') > power_std.in_units_of('W')
+        assert power_hot > power_std
 
     def test_cold_day_requires_less_power(self, evtol_system):
         """Test that cold day conditions require less hover power."""
@@ -236,7 +236,7 @@ class TestAtmosphereWithTemperatureOffset:
         power_cold = evtol_system.hover_power_ideal(thrust, atmosphere=cold_day)
 
         # Cold day has higher density, requires less power
-        assert power_cold.in_units_of('W') < power_std.in_units_of('W')
+        assert power_cold < power_std
 
 
 class TestRealisticMissionScenarios:

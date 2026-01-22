@@ -42,7 +42,7 @@ class Motor:
 
         if not 0 < self.efficiency <= 1:
             raise ValueError("efficiency must be between 0 and 1")
-        if self.max_power.in_units_of('W') <= 0:
+        if self.max_power.magnitude <= 0:
             raise ValueError("max_power must be positive")
 
     def shaft_power(self, electrical_power: Power) -> Power:
@@ -85,9 +85,8 @@ class Motor:
         """
         if self.mass is None:
             return 0.0
-        power_kw = self.max_power.in_units_of('kW')
-        mass_kg = self.mass.in_units_of('kg')
-        return power_kw / mass_kg
+        ratio_pint = self.max_power / self.mass
+        return ratio_pint.to('kW/kg').magnitude
 
     def __repr__(self) -> str:
         return (

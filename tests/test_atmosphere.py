@@ -152,7 +152,7 @@ class TestAtmosphereTemperatureOffset:
         atm_hot = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(20, 'K'))
 
         # Hot day should have lower density
-        assert atm_hot.density.in_units_of('kg/m^3') < atm_std.density.in_units_of('kg/m^3')
+        assert atm_hot.density < atm_std.density
 
     def test_cold_day_increases_density(self):
         """Test that cold day increases density."""
@@ -160,7 +160,7 @@ class TestAtmosphereTemperatureOffset:
         atm_cold = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(-10, 'K'))
 
         # Cold day should have higher density
-        assert atm_cold.density.in_units_of('kg/m^3') > atm_std.density.in_units_of('kg/m^3')
+        assert atm_cold.density > atm_std.density
 
     def test_pressure_unaffected_by_offset(self):
         """Test that pressure is unaffected by temperature offset."""
@@ -178,7 +178,7 @@ class TestAtmosphereTemperatureOffset:
         atm_hot = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(20, 'K'))
 
         # Speed of sound increases with temperature
-        assert atm_hot.speed_of_sound.in_units_of('m/s') > atm_std.speed_of_sound.in_units_of('m/s')
+        assert atm_hot.speed_of_sound > atm_std.speed_of_sound
 
     def test_isa_properties_unchanged_with_offset(self):
         """Test that ISA properties are unaffected by offset."""
@@ -413,8 +413,8 @@ class TestAtmosphereIntegration:
         cruise_3000ft = Atmosphere(Altitude(3000, 'ft'))
 
         # Verify expected trends
-        assert cruise_1000ft.density.in_units_of('kg/m^3') < sea_level.density.in_units_of('kg/m^3')
-        assert cruise_3000ft.density.in_units_of('kg/m^3') < cruise_1000ft.density.in_units_of('kg/m^3')
+        assert cruise_1000ft.density < sea_level.density
+        assert cruise_3000ft.density < cruise_1000ft.density
 
     def test_hot_day_performance_impact(self):
         """Test hot day impact on air density at typical heliport altitude."""
@@ -425,7 +425,8 @@ class TestAtmosphereIntegration:
         hot_day = Atmosphere(altitude, temperature_offset=Temperature(20, 'K'))  # ISA+20
 
         # Calculate density ratio (impacts hover power)
-        density_ratio = hot_day.density.in_units_of('kg/m^3') / std_day.density.in_units_of('kg/m^3')
+        # Dividing same-type quantities gives a dimensionless ratio
+        density_ratio = (hot_day.density / std_day.density).magnitude
 
         # Hot day should have ~93% density (rough approximation)
         assert density_ratio < 1.0

@@ -179,12 +179,14 @@ class Battery(BaseComponent):
 
         Accounts for the fact that batteries cannot be fully discharged.
         """
-        max_v = self.chemistry.max_cell_voltage.in_units_of('V')
-        min_v = self.chemistry.min_cell_voltage.in_units_of('V')
-        nom_v = self.chemistry.nominal_cell_voltage.in_units_of('V')
+        max_v = self.chemistry.max_cell_voltage
+        min_v = self.chemistry.min_cell_voltage
+        nom_v = self.chemistry.nominal_cell_voltage
 
         # Approximate usable range assuming linear discharge
-        return (nom_v - min_v) / (max_v - min_v)
+        # Dividing same-type quantities gives dimensionless ratio
+        ratio_pint = (nom_v - min_v) / (max_v - min_v)
+        return float(ratio_pint.magnitude)
 
     # Current limits
     @property

@@ -454,7 +454,7 @@ class TestPropulsionSystemHoverPower:
 
         # Should use default density of 1.225 kg/m^3
         ideal = system.hover_power_ideal(thrust)
-        assert ideal.in_units_of('W') > 0
+        assert ideal.magnitude > 0
 
     def test_hover_shaft_power(self):
         motor = Motor(max_power=Power(50, 'kW'))

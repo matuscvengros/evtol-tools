@@ -218,10 +218,11 @@ class Altitude(Length):
             >>> Altitude(40000, 'ft').is_in_troposphere()
             False
         """
-        altitude_m = self.in_units_of('m')
-        if isinstance(altitude_m, np.ndarray):
-            return np.all(altitude_m < self.TROPOPAUSE_M)
-        return altitude_m < self.TROPOPAUSE_M
+        tropopause = Altitude(self.TROPOPAUSE_M, 'm')
+        result = self < tropopause
+        if isinstance(result, np.ndarray):
+            return bool(np.all(result))
+        return bool(result)
 
     def is_below_evtol_ceiling(self, ceiling_ft: float = None) -> bool:
         """Check if altitude is below typical eVTOL operating ceiling.
@@ -245,10 +246,11 @@ class Altitude(Length):
         if ceiling_ft is None:
             ceiling_ft = self.EVTOL_TYPICAL_CEILING_FT
 
-        altitude_ft = self.in_units_of('ft')
-        if isinstance(altitude_ft, np.ndarray):
-            return np.all(altitude_ft <= ceiling_ft)
-        return altitude_ft <= ceiling_ft
+        ceiling = Altitude(ceiling_ft, 'ft')
+        result = self <= ceiling
+        if isinstance(result, np.ndarray):
+            return bool(np.all(result))
+        return bool(result)
 
     @property
     def agl_reference(self) -> str:
