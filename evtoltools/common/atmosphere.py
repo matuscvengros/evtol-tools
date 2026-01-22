@@ -223,10 +223,7 @@ class Atmosphere:
         Returns:
             Kinematic viscosity (m^2/s)
         """
-        kv = self._ambiance.kinematic_viscosity
-        if isinstance(kv, np.ndarray):
-            return kv if kv.ndim > 0 else float(kv)
-        return float(kv)
+        return self._to_scalar_or_array(self._ambiance.kinematic_viscosity)
 
     @property
     def dynamic_viscosity(self) -> float:
@@ -235,10 +232,7 @@ class Atmosphere:
         Returns:
             Dynamic viscosity (Pa*s)
         """
-        dv = self._ambiance.dynamic_viscosity
-        if isinstance(dv, np.ndarray):
-            return dv if dv.ndim > 0 else float(dv)
-        return float(dv)
+        return self._to_scalar_or_array(self._ambiance.dynamic_viscosity)
 
     @classmethod
     def from_pressure_altitude(cls, pressure: Pressure) -> 'Atmosphere':
