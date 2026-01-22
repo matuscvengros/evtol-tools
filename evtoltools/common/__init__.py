@@ -53,6 +53,7 @@ from evtoltools.common.units import (
 
 # Import atmosphere module
 from evtoltools.common.atmosphere import (
+    Altitude,
     Atmosphere,
     atmosphere_at_altitude,
     sea_level_atmosphere,
@@ -124,6 +125,7 @@ __all__ = [
     'Frequency',
 
     # Atmosphere API
+    'Altitude',
     'Atmosphere',
     'atmosphere_at_altitude',
     'sea_level_atmosphere',

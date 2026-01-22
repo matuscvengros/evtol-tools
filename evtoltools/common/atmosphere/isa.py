@@ -5,15 +5,15 @@ Standard Atmosphere model via the ambiance library. Supports temperature offsets
 for ISA+/- (hot/cold day) analysis.
 
 Examples:
-    >>> from evtoltools.common import Atmosphere, Length, Temperature
+    >>> from evtoltools.common import Atmosphere, Altitude, Temperature
     >>>
     >>> # Standard atmosphere at 5000m
-    >>> atm = Atmosphere(Length(5000, 'm'))
+    >>> atm = Atmosphere(Altitude(5000, 'm'))
     >>> print(f"Temperature: {atm.temperature}")
     >>> print(f"Density: {atm.density}")
     >>>
     >>> # Hot day (ISA+20)
-    >>> hot = Atmosphere(Length(5000, 'm'), temperature_offset=Temperature(20, 'K'))
+    >>> hot = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(20, 'K'))
     >>> print(f"Hot day density: {hot.density}")
 """
 
@@ -30,6 +30,7 @@ from evtoltools.common.units.quantities import (
     Density,
     Velocity,
 )
+from evtoltools.common.atmosphere.altitude import Altitude
 
 # Physical constants
 GAS_CONSTANT_AIR = 287.05287  # J/(kg*K) - Specific gas constant for dry air
@@ -50,7 +51,7 @@ class Atmosphere:
     for analyzing non-standard conditions (hot/cold day scenarios).
 
     Attributes:
-        altitude: Geometric altitude
+        altitude: Geometric altitude (as Altitude quantity)
         temperature_offset: Temperature deviation from ISA (positive = hotter)
 
     Notes:
@@ -59,35 +60,39 @@ class Atmosphere:
         - Density and speed of sound are recalculated with offset temperature
 
     Examples:
-        >>> atm = Atmosphere(Length(10000, 'ft'))
+        >>> atm = Atmosphere(Altitude(10000, 'ft'))
         >>> print(atm.temperature)
         >>> print(atm.pressure)
         >>> print(atm.density)
         >>> print(atm.speed_of_sound)
         >>>
         >>> # Hot day analysis (ISA+15)
-        >>> hot = Atmosphere(Length(5000, 'm'), Temperature(15, 'K'))
+        >>> hot = Atmosphere(Altitude(5000, 'm'), Temperature(15, 'K'))
         >>> print(f"Density reduced to: {hot.density}")
     """
 
     def __init__(
         self,
-        altitude: Length,
+        altitude: Union[Altitude, Length],
         temperature_offset: Optional[Temperature] = None
     ):
         """Initialize atmosphere at given altitude.
 
         Args:
-            altitude: Geometric altitude (Length quantity)
+            altitude: Geometric altitude (Altitude or Length quantity)
             temperature_offset: Temperature offset from ISA in Kelvin.
                 Positive values represent hotter than ISA.
                 Defaults to None (standard ISA conditions).
         """
-        self._altitude = altitude
+        # Convert Length to Altitude if needed
+        if isinstance(altitude, Altitude):
+            self._altitude = altitude
+        else:
+            self._altitude = Altitude(altitude.magnitude, str(altitude.units))
         self._temperature_offset = temperature_offset
 
         # Get altitude in meters for ambiance
-        altitude_m = altitude.in_units_of('m')
+        altitude_m = self._altitude.in_units_of('m')
 
         # Handle both scalar and array inputs
         if isinstance(altitude_m, np.ndarray):
@@ -96,7 +101,7 @@ class Atmosphere:
             self._ambiance = AmbianceAtmosphere(float(altitude_m))
 
     @property
-    def altitude(self) -> Length:
+    def altitude(self) -> Altitude:
         """Geometric altitude."""
         return self._altitude
 
@@ -268,7 +273,7 @@ class Atmosphere:
             else:
                 h_high = h_mid
 
-        return cls(Length(h_mid, 'm'))
+        return cls(Altitude(h_mid, 'm'))
 
     @classmethod
     def from_density_altitude(cls, density: Density) -> 'Atmosphere':
@@ -304,30 +309,30 @@ class Atmosphere:
             else:
                 h_high = h_mid
 
-        return cls(Length(h_mid, 'm'))
+        return cls(Altitude(h_mid, 'm'))
 
     @classmethod
-    def pressure_altitude(cls, pressure: Pressure) -> Length:
+    def pressure_altitude(cls, pressure: Pressure) -> Altitude:
         """Calculate pressure altitude from atmospheric pressure.
 
         Args:
             pressure: Atmospheric pressure
 
         Returns:
-            Pressure altitude as Length quantity
+            Pressure altitude as Altitude quantity
         """
         atm = cls.from_pressure_altitude(pressure)
         return atm.altitude
 
     @classmethod
-    def density_altitude(cls, density: Density) -> Length:
+    def density_altitude(cls, density: Density) -> Altitude:
         """Calculate density altitude from atmospheric density.
 
         Args:
             density: Atmospheric density
 
         Returns:
-            Density altitude as Length quantity
+            Density altitude as Altitude quantity
         """
         atm = cls.from_density_altitude(density)
         return atm.altitude
@@ -348,13 +353,13 @@ class Atmosphere:
 
 
 def atmosphere_at_altitude(
-    altitude: Length,
+    altitude: Union[Altitude, Length],
     temperature_offset: Optional[Temperature] = None
 ) -> Atmosphere:
     """Convenience function to create atmosphere at given altitude.
 
     Args:
-        altitude: Geometric altitude
+        altitude: Geometric altitude (Altitude or Length)
         temperature_offset: Temperature offset from ISA
 
     Returns:
@@ -369,4 +374,4 @@ def sea_level_atmosphere() -> Atmosphere:
     Returns:
         Atmosphere instance at sea level
     """
-    return Atmosphere(Length(0, 'm'))
+    return Atmosphere(Altitude.sea_level())
