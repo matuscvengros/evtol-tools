@@ -151,15 +151,15 @@ def main():
     parser.add_argument(
         '--soc-points', '-s',
         type=int,
-        default=12,
-        help='Number of SoC points (default: 12)'
+        default=24,
+        help='Number of SoC points (default: 24)'
     )
 
     parser.add_argument(
         '--c-rate-points', '-r',
         type=int,
-        default=7,
-        help='Number of C-rate points (default: 7)'
+        default=12,
+        help='Number of C-rate points (default: 12)'
     )
 
     parser.add_argument(
@@ -186,7 +186,7 @@ def main():
         '--output-dir', '-o',
         type=Path,
         default=None,
-        help='Output directory (default: evtoltools/data)'
+        help='Output directory (default: evtoltools/components/battery/tables)'
     )
 
     args = parser.parse_args()
@@ -194,7 +194,7 @@ def main():
     # Determine output directory
     if args.output_dir is None:
         script_dir = Path(__file__).parent
-        output_dir = script_dir.parent / 'evtoltools' / 'data'
+        output_dir = script_dir.parent / 'evtoltools' / 'components' / 'battery' / 'tables'
     else:
         output_dir = args.output_dir
 

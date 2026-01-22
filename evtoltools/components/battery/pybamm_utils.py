@@ -326,10 +326,10 @@ def create_default_lookup_table(chemistry_name: str) -> LookupTableDischargeMode
 
 
 def load_lookup_table_from_data(chemistry_name: str) -> LookupTableDischargeModel:
-    """Load a pre-generated lookup table from the package data directory.
+    """Load a pre-generated lookup table from the package tables directory.
 
-    Looks for a .npz file in evtoltools/data/ matching the chemistry name.
-    These files are generated using utils/generate_lookup_tables.py.
+    Looks for a .npz file in evtoltools/components/battery/tables/ matching
+    the chemistry name. These files are generated using utils/generate_lookup_tables.py.
 
     Args:
         chemistry_name: Chemistry name (e.g., 'lithium_ion', 'lifepo4').
@@ -340,14 +340,14 @@ def load_lookup_table_from_data(chemistry_name: str) -> LookupTableDischargeMode
     Raises:
         FileNotFoundError: If no data file exists for the chemistry.
     """
-    # Find the data directory relative to this module
-    data_dir = Path(__file__).parent.parent.parent / 'data'
+    # Find the tables directory relative to this module
+    tables_dir = Path(__file__).parent / 'tables'
 
     key = chemistry_name.lower().replace('-', '_')
-    filepath = data_dir / f'discharge_{key}.npz'
+    filepath = tables_dir / f'discharge_{key}.npz'
 
     if not filepath.exists():
-        available = list(data_dir.glob('discharge_*.npz'))
+        available = list(tables_dir.glob('discharge_*.npz'))
         available_names = [f.stem.replace('discharge_', '') for f in available]
         raise FileNotFoundError(
             f"No lookup table found for '{chemistry_name}' at {filepath}. "
