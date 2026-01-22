@@ -35,14 +35,29 @@ Examples:
 
 import math
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
-from evtoltools.common import Capacity, Current, Energy, Mass, Power, Voltage
+from evtoltools.common import (
+    Capacity,
+    Current,
+    Energy,
+    Mass,
+    Power,
+    Resistance,
+    Temperature,
+    Voltage,
+)
 from evtoltools.components.base import BaseComponent
 from evtoltools.components.battery.chemistry import (
     LITHIUM_ION,
     BatteryChemistry,
     get_chemistry,
+)
+from evtoltools.components.battery.discharge import (
+    AnalyticalDischargeModel,
+    ChargeModel,
+    DischargeModel,
+    SimpleChargeModel,
 )
 
 
@@ -97,6 +112,8 @@ class Battery(BaseComponent):
     pack_overhead_fraction: float = 0.15  # 15% for BMS, wiring, enclosure
     warnings: List[str] = field(default_factory=list)
     info: Dict[str, Any] = field(default_factory=dict)
+    _discharge_model: Optional[DischargeModel] = field(default=None, repr=False)
+    _charge_model: Optional[ChargeModel] = field(default=None, repr=False)
 
     def __post_init__(self):
         """Validate inputs, convert chemistry string, and normalize units to SI."""
@@ -219,6 +236,268 @@ class Battery(BaseComponent):
         """Maximum continuous discharge power."""
         power_pint = self.nominal_voltage * self.max_discharge_current
         return Power(power_pint.to('W'))
+
+    # C-rate conversion methods
+    def current_from_c_rate(self, c_rate: float) -> Current:
+        """Convert C-rate to pack current.
+
+        C-rate represents the current relative to capacity:
+        1C on a 20Ah pack = 20A.
+
+        Args:
+            c_rate: Discharge/charge rate as multiple of capacity.
+
+        Returns:
+            Pack current in Amperes.
+        """
+        capacity_ah = self.total_capacity.in_units_of('Ah')
+        return Current(capacity_ah * c_rate, 'A')
+
+    def c_rate_from_current(self, current: Current) -> float:
+        """Convert pack current to C-rate.
+
+        Args:
+            current: Pack current.
+
+        Returns:
+            C-rate (dimensionless).
+        """
+        capacity_ah = self.total_capacity.in_units_of('Ah')
+        current_a = current.in_units_of('A')
+        return current_a / capacity_ah
+
+    # Discharge model property and methods
+    @property
+    def discharge_model(self) -> DischargeModel:
+        """Get discharge model, creating default if needed.
+
+        Returns an AnalyticalDischargeModel based on chemistry parameters
+        if no custom model has been set.
+        """
+        if self._discharge_model is None:
+            cell_r = self.chemistry.internal_resistance or Resistance(30, 'mohm')
+            return AnalyticalDischargeModel(
+                v_max=self.chemistry.max_cell_voltage,
+                v_min=self.chemistry.min_cell_voltage,
+                v_nominal=self.chemistry.nominal_cell_voltage,
+                internal_resistance=cell_r,
+                capacity_ah=self.cell_capacity.in_units_of('Ah'),
+            )
+        return self._discharge_model
+
+    def set_discharge_model(self, model: DischargeModel) -> None:
+        """Set custom discharge model.
+
+        Args:
+            model: DischargeModel instance (e.g., LookupTableDischargeModel).
+        """
+        object.__setattr__(self, '_discharge_model', model)
+
+    @property
+    def charge_model(self) -> ChargeModel:
+        """Get charge model, creating default if needed.
+
+        Returns a SimpleChargeModel if no custom model has been set.
+        """
+        if self._charge_model is None:
+            return SimpleChargeModel()
+        return self._charge_model
+
+    def set_charge_model(self, model: ChargeModel) -> None:
+        """Set custom charge model.
+
+        Args:
+            model: ChargeModel instance.
+        """
+        object.__setattr__(self, '_charge_model', model)
+
+    def get_cell_voltage(
+        self,
+        soc: float,
+        c_rate: float,
+        temperature: Optional[Temperature] = None
+    ) -> Voltage:
+        """Get single cell voltage at operating conditions.
+
+        Args:
+            soc: State of charge (0.0 to 1.0).
+            c_rate: Discharge rate as C multiple.
+            temperature: Optional cell temperature.
+
+        Returns:
+            Single cell voltage.
+        """
+        return self.discharge_model.get_voltage(soc, c_rate, temperature)
+
+    def get_voltage(
+        self,
+        soc: float,
+        current: Optional[Current] = None,
+        c_rate: Optional[float] = None,
+        temperature: Optional[Temperature] = None
+    ) -> Voltage:
+        """Get pack voltage at operating conditions.
+
+        Provide either current OR c_rate (not both). Pack voltage is
+        cell voltage multiplied by cells in series.
+
+        Args:
+            soc: State of charge (0.0 to 1.0).
+            current: Pack current (alternative to c_rate).
+            c_rate: Discharge rate as C multiple (alternative to current).
+            temperature: Optional cell temperature.
+
+        Returns:
+            Pack voltage.
+
+        Raises:
+            ValueError: If neither or both of current/c_rate are provided.
+        """
+        if current is not None and c_rate is not None:
+            raise ValueError("Provide either 'current' or 'c_rate', not both")
+        if current is None and c_rate is None:
+            raise ValueError("Must provide either 'current' or 'c_rate'")
+
+        if current is not None:
+            c_rate = self.c_rate_from_current(current)
+
+        cell_voltage = self.get_cell_voltage(soc, c_rate, temperature)
+        return cell_voltage * self.cells_series
+
+    # Internal resistance methods
+    @property
+    def internal_resistance(self) -> Resistance:
+        """Pack internal resistance.
+
+        Calculated as: R_pack = (R_cell * cells_series) / cells_parallel
+
+        Series cells add resistance, parallel cells reduce it.
+        """
+        cell_r = self.chemistry.internal_resistance or Resistance(30, 'mohm')
+        r_value = (
+            cell_r.in_units_of('ohm') * self.cells_series / self.cells_parallel
+        )
+        return Resistance(r_value, 'ohm')
+
+    def get_internal_resistance(
+        self,
+        soc: float,
+        temperature: Optional[Temperature] = None
+    ) -> Resistance:
+        """Get pack internal resistance at given SoC.
+
+        If the discharge model supports SoC-dependent resistance,
+        uses that. Otherwise returns constant pack resistance.
+
+        Args:
+            soc: State of charge (0.0 to 1.0).
+            temperature: Optional cell temperature.
+
+        Returns:
+            Pack internal resistance.
+        """
+        cell_r = self.discharge_model.get_resistance(soc, temperature)
+        if cell_r is None:
+            return self.internal_resistance
+
+        # Scale cell resistance to pack resistance
+        r_value = (
+            cell_r.in_units_of('ohm') * self.cells_series / self.cells_parallel
+        )
+        return Resistance(r_value, 'ohm')
+
+    # Thermal/heat generation methods
+    def heat_generation_rate(
+        self,
+        current: Current,
+        soc: Optional[float] = None
+    ) -> Power:
+        """Calculate I²R heat generation rate.
+
+        Args:
+            current: Pack current (discharge or charge).
+            soc: Optional state of charge for SoC-dependent resistance.
+
+        Returns:
+            Heat generation rate in Watts.
+        """
+        if soc is not None:
+            resistance = self.get_internal_resistance(soc)
+        else:
+            resistance = self.internal_resistance
+
+        current_a = current.in_units_of('A')
+        r_ohm = resistance.in_units_of('ohm')
+
+        # P = I²R
+        heat_watts = current_a ** 2 * r_ohm
+        return Power(heat_watts, 'W')
+
+    # Charge methods
+    def get_charge_current(
+        self,
+        soc: float,
+        temperature: Optional[Temperature] = None
+    ) -> Current:
+        """Get recommended charge current at given SoC.
+
+        Uses the charge model to determine appropriate charging current
+        following CC-CV or other charging profile.
+
+        Args:
+            soc: Current state of charge (0.0 to 1.0).
+            temperature: Optional cell temperature.
+
+        Returns:
+            Recommended charge current.
+        """
+        c_rate = self.charge_model.get_charge_current(
+            soc, self.c_rating_charge, temperature
+        )
+        return self.current_from_c_rate(c_rate)
+
+    def get_charge_efficiency(
+        self,
+        soc: float,
+        current: Optional[Current] = None,
+        c_rate: Optional[float] = None,
+        temperature: Optional[Temperature] = None
+    ) -> float:
+        """Get charging efficiency at given conditions.
+
+        Args:
+            soc: State of charge (0.0 to 1.0).
+            current: Charge current (alternative to c_rate).
+            c_rate: Charge rate (alternative to current).
+            temperature: Optional cell temperature.
+
+        Returns:
+            Charging efficiency (0.0 to 1.0).
+        """
+        if current is not None:
+            c_rate = self.c_rate_from_current(current)
+        elif c_rate is None:
+            c_rate = self.c_rating_charge
+
+        return self.charge_model.get_charge_efficiency(soc, c_rate, temperature)
+
+    def time_to_charge(
+        self,
+        start_soc: float = 0.2,
+        end_soc: float = 0.8
+    ) -> float:
+        """Estimate time to charge between SoC levels.
+
+        Args:
+            start_soc: Starting SoC (default 0.2 = 20%).
+            end_soc: Target SoC (default 0.8 = 80%).
+
+        Returns:
+            Estimated charge time in hours.
+        """
+        return self.charge_model.time_to_charge(
+            start_soc, end_soc, self.c_rating_charge
+        )
 
     # Sizing methods
     @classmethod

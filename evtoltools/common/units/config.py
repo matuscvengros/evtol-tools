@@ -31,6 +31,7 @@ DEFAULT_UNITS: Dict[str, str] = {
     'capacity': 'Ah',
     'pressure': 'Pa',
     'frequency': 'Hz',
+    'resistance': 'ohm',
 }
 
 # Allowed alternative units for each quantity type
@@ -57,6 +58,7 @@ ALLOWED_UNITS: Dict[str, list[str]] = {
     'capacity': ['Ah', 'mAh', 'C'],
     'pressure': ['Pa', 'kPa', 'bar', 'psi', 'atm'],
     'frequency': ['Hz', 'kHz', 'MHz', 'mHz'],
+    'resistance': ['ohm', 'mohm', 'kohm', 'Mohm'],
 }
 
 __all__ = ['DEFAULT_UNITS', 'ALLOWED_UNITS']

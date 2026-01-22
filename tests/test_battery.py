@@ -24,7 +24,7 @@ import math
 
 import pytest
 
-from evtoltools.common import Capacity, Current, Energy, Mass, Power, Voltage
+from evtoltools.common import Capacity, Current, Energy, Mass, Power, Resistance, Temperature, Voltage
 from evtoltools.components import (
     LITHIUM_ION,
     LITHIUM_IRON_PHOSPHATE,
@@ -33,6 +33,11 @@ from evtoltools.components import (
     Battery,
     BatteryChemistry,
     get_chemistry,
+)
+from evtoltools.components.battery import (
+    AnalyticalDischargeModel,
+    LookupTableDischargeModel,
+    SimpleChargeModel,
 )
 
 
@@ -644,4 +649,311 @@ class TestBatteryProperties:
         repr_str = repr(battery)
         assert 'Battery' in repr_str
         assert '14S4P' in repr_str
+
+
+class TestBatteryCRateConversion:
+    """Tests for Battery C-rate conversion methods."""
+
+    @pytest.fixture
+    def battery(self):
+        return Battery(
+            cells_series=14,
+            cells_parallel=4,
+            cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
+        )
+
+    def test_current_from_c_rate_1c(self, battery):
+        """1C on 20Ah pack should be 20A."""
+        current = battery.current_from_c_rate(1.0)
+        assert current.in_units_of('A') == pytest.approx(20)
+
+    def test_current_from_c_rate_2c(self, battery):
+        """2C on 20Ah pack should be 40A."""
+        current = battery.current_from_c_rate(2.0)
+        assert current.in_units_of('A') == pytest.approx(40)
+
+    def test_current_from_c_rate_half(self, battery):
+        """0.5C on 20Ah pack should be 10A."""
+        current = battery.current_from_c_rate(0.5)
+        assert current.in_units_of('A') == pytest.approx(10)
+
+    def test_c_rate_from_current_20a(self, battery):
+        """20A on 20Ah pack should be 1C."""
+        c_rate = battery.c_rate_from_current(Current(20, 'A'))
+        assert c_rate == pytest.approx(1.0)
+
+    def test_c_rate_from_current_40a(self, battery):
+        """40A on 20Ah pack should be 2C."""
+        c_rate = battery.c_rate_from_current(Current(40, 'A'))
+        assert c_rate == pytest.approx(2.0)
+
+    def test_roundtrip_conversion(self, battery):
+        """Converting back and forth should preserve value."""
+        original_c_rate = 1.5
+        current = battery.current_from_c_rate(original_c_rate)
+        recovered_c_rate = battery.c_rate_from_current(current)
+        assert recovered_c_rate == pytest.approx(original_c_rate)
+
+
+class TestBatteryDischargeVoltage:
+    """Tests for Battery discharge voltage methods."""
+
+    @pytest.fixture
+    def battery(self):
+        return Battery(
+            cells_series=14,
+            cells_parallel=4,
+            cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
+            chemistry=LITHIUM_ION,
+        )
+
+    def test_get_cell_voltage_high_soc(self, battery):
+        """Cell voltage at high SoC should be near max."""
+        v = battery.get_cell_voltage(soc=0.95, c_rate=0.1)
+        # Should be close to max (4.2V) but with small I*R drop
+        assert v.in_units_of('V') > 4.0
+        assert v.in_units_of('V') <= 4.2
+
+    def test_get_cell_voltage_low_soc(self, battery):
+        """Cell voltage at low SoC should be lower."""
+        v = battery.get_cell_voltage(soc=0.1, c_rate=0.1)
+        # Should be closer to min (2.8V)
+        assert v.in_units_of('V') < 3.5
+        assert v.in_units_of('V') >= 2.8
+
+    def test_get_voltage_pack_scaling(self, battery):
+        """Pack voltage should be cell voltage * cells_series."""
+        cell_v = battery.get_cell_voltage(soc=0.5, c_rate=1.0)
+        pack_v = battery.get_voltage(soc=0.5, c_rate=1.0)
+        assert pack_v.in_units_of('V') == pytest.approx(
+            cell_v.in_units_of('V') * 14, abs=0.1
+        )
+
+    def test_get_voltage_with_current(self, battery):
+        """get_voltage should work with current instead of c_rate."""
+        v_c_rate = battery.get_voltage(soc=0.5, c_rate=1.0)
+        v_current = battery.get_voltage(soc=0.5, current=Current(20, 'A'))
+        assert v_c_rate.in_units_of('V') == pytest.approx(
+            v_current.in_units_of('V'), abs=0.01
+        )
+
+    def test_get_voltage_requires_current_or_c_rate(self, battery):
+        """Must provide either current or c_rate."""
+        with pytest.raises(ValueError, match="Must provide"):
+            battery.get_voltage(soc=0.5)
+
+    def test_get_voltage_not_both(self, battery):
+        """Cannot provide both current and c_rate."""
+        with pytest.raises(ValueError, match="not both"):
+            battery.get_voltage(soc=0.5, current=Current(20, 'A'), c_rate=1.0)
+
+    def test_voltage_decreases_with_soc(self, battery):
+        """Pack voltage should decrease as SoC decreases."""
+        v_high = battery.get_voltage(soc=0.9, c_rate=1.0)
+        v_low = battery.get_voltage(soc=0.1, c_rate=1.0)
+        assert v_high > v_low
+
+    def test_voltage_decreases_with_c_rate(self, battery):
+        """Pack voltage should decrease as C-rate increases."""
+        v_low_c = battery.get_voltage(soc=0.5, c_rate=0.5)
+        v_high_c = battery.get_voltage(soc=0.5, c_rate=3.0)
+        assert v_low_c > v_high_c
+
+
+class TestBatteryInternalResistance:
+    """Tests for Battery internal resistance methods."""
+
+    def test_pack_resistance_series_only(self):
+        """Series cells add resistance."""
+        battery = Battery(
+            cells_series=10,
+            cells_parallel=1,
+            cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
+            chemistry=LITHIUM_ION,  # 30 mohm per cell
+        )
+        # 10 cells in series * 30 mohm = 300 mohm
+        r = battery.internal_resistance
+        assert r.in_units_of('mohm') == pytest.approx(300, abs=1)
+
+    def test_pack_resistance_parallel_only(self):
+        """Parallel cells reduce resistance."""
+        battery = Battery(
+            cells_series=1,
+            cells_parallel=3,
+            cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
+            chemistry=LITHIUM_ION,  # 30 mohm per cell
+        )
+        # 1 cell / 3 parallel = 10 mohm
+        r = battery.internal_resistance
+        assert r.in_units_of('mohm') == pytest.approx(10, abs=1)
+
+    def test_pack_resistance_series_parallel(self):
+        """Series/parallel combination."""
+        battery = Battery(
+            cells_series=2,
+            cells_parallel=3,
+            cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
+            chemistry=LITHIUM_ION,  # 30 mohm per cell
+        )
+        # (30 mohm * 2 series) / 3 parallel = 20 mohm
+        r = battery.internal_resistance
+        assert r.in_units_of('mohm') == pytest.approx(20, abs=1)
+
+    def test_get_internal_resistance_returns_value(self):
+        """get_internal_resistance should return pack resistance."""
+        battery = Battery(
+            cells_series=14,
+            cells_parallel=4,
+            cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
+            chemistry=LITHIUM_ION,
+        )
+        r = battery.get_internal_resistance(soc=0.5)
+        assert r is not None
+        assert r.in_units_of('mohm') > 0
+
+
+class TestBatteryHeatGeneration:
+    """Tests for Battery heat generation methods."""
+
+    @pytest.fixture
+    def battery(self):
+        return Battery(
+            cells_series=2,
+            cells_parallel=3,
+            cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
+            chemistry=LITHIUM_ION,  # 30 mohm per cell
+        )
+
+    def test_heat_generation_i2r(self, battery):
+        """Heat should be I^2 * R."""
+        # Pack R = 20 mohm = 0.02 ohm
+        # At 10A: P = 10^2 * 0.02 = 2W
+        heat = battery.heat_generation_rate(Current(10, 'A'))
+        assert heat.in_units_of('W') == pytest.approx(2, abs=0.1)
+
+    def test_heat_generation_scales_with_current_squared(self, battery):
+        """Heat should scale with I^2."""
+        heat_10a = battery.heat_generation_rate(Current(10, 'A'))
+        heat_20a = battery.heat_generation_rate(Current(20, 'A'))
+        # 20A should generate 4x the heat of 10A
+        ratio = heat_20a.in_units_of('W') / heat_10a.in_units_of('W')
+        assert ratio == pytest.approx(4.0, abs=0.1)
+
+    def test_heat_generation_with_soc(self, battery):
+        """Heat generation with SoC-dependent resistance."""
+        heat = battery.heat_generation_rate(Current(10, 'A'), soc=0.5)
+        assert heat.in_units_of('W') > 0
+
+
+class TestBatteryDischargeModel:
+    """Tests for Battery discharge model integration."""
+
+    @pytest.fixture
+    def battery(self):
+        return Battery(
+            cells_series=14,
+            cells_parallel=4,
+            cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
+        )
+
+    def test_default_discharge_model(self, battery):
+        """Default model should be AnalyticalDischargeModel."""
+        model = battery.discharge_model
+        assert isinstance(model, AnalyticalDischargeModel)
+
+    def test_set_discharge_model(self, battery):
+        """Should be able to set custom discharge model."""
+        import numpy as np
+
+        custom_model = LookupTableDischargeModel(
+            soc_points=np.array([0.0, 0.5, 1.0]),
+            c_rate_points=np.array([0.1, 1.0]),
+            voltage_data=np.array([[2.8, 2.7], [3.5, 3.4], [4.2, 4.1]]),
+        )
+        battery.set_discharge_model(custom_model)
+        assert battery.discharge_model is custom_model
+
+
+class TestBatteryChargeModel:
+    """Tests for Battery charge model integration."""
+
+    @pytest.fixture
+    def battery(self):
+        return Battery(
+            cells_series=14,
+            cells_parallel=4,
+            cell_capacity=Capacity(5, 'Ah'),
+            cell_mass=Mass(50, 'g'),
+            c_rating_charge=1.0,
+        )
+
+    def test_default_charge_model(self, battery):
+        """Default model should be SimpleChargeModel."""
+        model = battery.charge_model
+        assert isinstance(model, SimpleChargeModel)
+
+    def test_get_charge_current_cc_phase(self, battery):
+        """In CC phase, should get max charge current."""
+        current = battery.get_charge_current(soc=0.3)
+        # 1C on 20Ah = 20A
+        assert current.in_units_of('A') == pytest.approx(20, abs=0.1)
+
+    def test_get_charge_current_cv_phase(self, battery):
+        """In CV phase, current should taper."""
+        current_low_soc = battery.get_charge_current(soc=0.5)
+        current_high_soc = battery.get_charge_current(soc=0.95)
+        assert current_high_soc < current_low_soc
+
+    def test_get_charge_efficiency(self, battery):
+        """Charge efficiency should be between 0 and 1."""
+        eff = battery.get_charge_efficiency(soc=0.5, c_rate=1.0)
+        assert 0 < eff < 1
+
+    def test_time_to_charge(self, battery):
+        """Time to charge should be positive."""
+        time = battery.time_to_charge(start_soc=0.2, end_soc=0.8)
+        assert time > 0
+
+
+class TestBatteryChemistryResistance:
+    """Tests for chemistry internal resistance values."""
+
+    def test_lithium_ion_resistance(self):
+        """Lithium-ion chemistry should have internal resistance."""
+        assert LITHIUM_ION.internal_resistance is not None
+        assert LITHIUM_ION.internal_resistance.in_units_of('mohm') == 30
+
+    def test_lithium_polymer_resistance(self):
+        """LiPo chemistry should have internal resistance."""
+        assert LITHIUM_POLYMER.internal_resistance is not None
+        assert LITHIUM_POLYMER.internal_resistance.in_units_of('mohm') == 25
+
+    def test_lifepo4_resistance(self):
+        """LiFePO4 chemistry should have internal resistance."""
+        assert LITHIUM_IRON_PHOSPHATE.internal_resistance is not None
+        assert LITHIUM_IRON_PHOSPHATE.internal_resistance.in_units_of('mohm') == 40
+
+    def test_nmc_resistance(self):
+        """NMC chemistry should have internal resistance."""
+        assert LITHIUM_NMC.internal_resistance is not None
+        assert LITHIUM_NMC.internal_resistance.in_units_of('mohm') == 25
+
+
+class TestBatteryChemistryThermalLimits:
+    """Tests for chemistry thermal limit values."""
+
+    def test_lithium_ion_thermal_limits(self):
+        """Lithium-ion chemistry should have thermal limits."""
+        assert LITHIUM_ION.max_discharge_temperature is not None
+        assert LITHIUM_ION.max_discharge_temperature.in_units_of('degC') == 60
+        assert LITHIUM_ION.min_temperature is not None
+        assert LITHIUM_ION.min_temperature.in_units_of('degC') == -20
 

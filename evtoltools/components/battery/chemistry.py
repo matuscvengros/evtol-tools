@@ -33,7 +33,7 @@ Examples:
 from dataclasses import dataclass
 from typing import Dict, Optional
 
-from evtoltools.common import Voltage
+from evtoltools.common import Resistance, Temperature, Voltage
 
 
 @dataclass(frozen=True)
@@ -47,6 +47,9 @@ class BatteryChemistry:
         min_cell_voltage: Minimum safe discharge voltage per cell
         description: Human-readable description
         pybamm_parameter_set: PyBaMM parameter set name for simulation
+        internal_resistance: Typical internal resistance per cell
+        max_discharge_temperature: Maximum safe discharge temperature
+        min_temperature: Minimum safe operating temperature
     """
 
     name: str
@@ -55,6 +58,9 @@ class BatteryChemistry:
     min_cell_voltage: Voltage
     description: str = ""
     pybamm_parameter_set: Optional[str] = None
+    internal_resistance: Optional[Resistance] = None
+    max_discharge_temperature: Optional[Temperature] = None
+    min_temperature: Optional[Temperature] = None
 
     def validate_voltage(self, voltage: Voltage) -> tuple[bool, str]:
         """Check if voltage is within safe operating range.
@@ -85,6 +91,9 @@ LITHIUM_ION = BatteryChemistry(
     min_cell_voltage=Voltage(2.8, 'V'),
     description='Standard lithium-ion (Li-ion) chemistry',
     pybamm_parameter_set='Chen2020',
+    internal_resistance=Resistance(30, 'mohm'),
+    max_discharge_temperature=Temperature(60, 'degC'),
+    min_temperature=Temperature(-20, 'degC'),
 )
 
 LITHIUM_POLYMER = BatteryChemistry(
@@ -94,6 +103,9 @@ LITHIUM_POLYMER = BatteryChemistry(
     min_cell_voltage=Voltage(3.2, 'V'),  # Higher min than Li-ion
     description='Lithium polymer (LiPo) chemistry',
     pybamm_parameter_set='Chen2020',
+    internal_resistance=Resistance(25, 'mohm'),
+    max_discharge_temperature=Temperature(60, 'degC'),
+    min_temperature=Temperature(-20, 'degC'),
 )
 
 LITHIUM_IRON_PHOSPHATE = BatteryChemistry(
@@ -103,6 +115,9 @@ LITHIUM_IRON_PHOSPHATE = BatteryChemistry(
     min_cell_voltage=Voltage(2.5, 'V'),
     description='Lithium iron phosphate (LiFePO4) chemistry',
     pybamm_parameter_set='Marquis2019',
+    internal_resistance=Resistance(40, 'mohm'),
+    max_discharge_temperature=Temperature(60, 'degC'),
+    min_temperature=Temperature(-20, 'degC'),
 )
 
 # NMC (Nickel Manganese Cobalt) - common for eVTOL
@@ -113,6 +128,9 @@ LITHIUM_NMC = BatteryChemistry(
     min_cell_voltage=Voltage(3.0, 'V'),
     description='Lithium NMC (Nickel Manganese Cobalt) chemistry',
     pybamm_parameter_set='Chen2020',
+    internal_resistance=Resistance(25, 'mohm'),
+    max_discharge_temperature=Temperature(60, 'degC'),
+    min_temperature=Temperature(-20, 'degC'),
 )
 
 # Registry of available chemistries

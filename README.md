@@ -27,6 +27,11 @@ eVTOL aircraft design requires integrating multiple engineering disciplines - pr
 - **Chemistry support** - Lithium-ion, NMC, LFP cell parameters
 - **Power limits** - C-rating based charge/discharge constraints
 - **Mass calculations** - Cells plus BMS/packaging overhead
+- **Discharge curves** - Voltage vs SoC and C-rate modeling
+- **Internal resistance** - Series/parallel pack resistance calculations
+- **Heat generation** - I²R losses for thermal analysis
+- **Charge modeling** - CC-CV profiles with efficiency modeling
+- **Thermal framework** - Temperature limits, derating, and thermal dynamics
 
 ### Atmospheric Calculations
 - **ISA model** - International Standard Atmosphere (0-80 km altitude)
@@ -148,6 +153,67 @@ battery = Battery.from_target_voltage(
     cell_capacity=Capacity(5000, 'mAh'),
     cell_mass=Mass(50, 'g')
 )
+```
+
+### Battery Discharge and Thermal Modeling
+
+```python
+from evtoltools.common import Capacity, Mass, Current, Temperature, Power, Time
+from evtoltools.components import Battery
+from evtoltools.components.battery import ThermalLimits, SimpleThermalModel
+
+# Create battery pack
+battery = Battery(
+    cells_series=14,
+    cells_parallel=4,
+    cell_capacity=Capacity(5, 'Ah'),
+    cell_mass=Mass(50, 'g'),
+    chemistry='lithium_ion'
+)
+
+# C-rate conversions
+current_1c = battery.current_from_c_rate(1.0)  # 20A for 20Ah pack
+c_rate = battery.c_rate_from_current(Current(40, 'A'))  # 2.0C
+
+# Discharge voltage varies with SoC and C-rate
+v_high_soc = battery.get_voltage(soc=0.9, c_rate=1.0)
+v_low_soc = battery.get_voltage(soc=0.2, c_rate=1.0)
+v_high_c = battery.get_voltage(soc=0.5, c_rate=3.0)  # Lower due to I*R drop
+
+# Internal resistance (series cells add, parallel cells reduce)
+pack_resistance = battery.internal_resistance  # Pack R = (cell_R * series) / parallel
+
+# I²R heat generation
+heat = battery.heat_generation_rate(Current(50, 'A'))
+print(f"Heat at 50A: {heat.in_units_of('W'):.1f} W")
+
+# Charge model with CC-CV profile
+charge_current = battery.get_charge_current(soc=0.3)  # Full current in CC phase
+charge_current_cv = battery.get_charge_current(soc=0.9)  # Tapered in CV phase
+charge_time = battery.time_to_charge(start_soc=0.2, end_soc=0.8)  # hours
+
+# Thermal limits and derating
+limits = ThermalLimits(
+    max_discharge_temp=Temperature(60, 'degC'),
+    derate_temp=Temperature(40, 'degC'),
+    min_temp=Temperature(-20, 'degC')
+)
+derate_factor = limits.get_derate_factor(Temperature(50, 'degC'))  # 50% power
+
+# Simple thermal model for mission analysis
+thermal_model = SimpleThermalModel(
+    mass=battery.mass,
+    specific_heat=1000,  # J/kg/K for Li-ion
+    cooling_coefficient=10.0  # W/K
+)
+
+final_temp = thermal_model.temperature_after(
+    initial_temp=Temperature(25, 'degC'),
+    heat_rate=Power(100, 'W'),
+    duration=Time(30, 'min'),
+    ambient_temp=Temperature(25, 'degC')
+)
+print(f"Battery temperature after 30 min: {final_temp.in_units_of('degC'):.1f} degC")
 ```
 
 ### Atmospheric Calculations
@@ -289,6 +355,36 @@ Mass:     m_pack = (N_series × N_parallel × m_cell) × (1 + overhead)
 where overhead includes BMS, wiring, enclosure (typically 15%)
 ```
 
+### Battery Discharge Model
+
+Voltage varies with state of charge (SoC) and discharge rate (C-rate):
+
+```
+V_cell = V_oc(SoC) - I × R_internal
+
+where:
+  V_oc = open-circuit voltage (function of SoC)
+  I = discharge current = C_rate × Capacity
+  R_internal = cell internal resistance
+
+Pack scaling:
+  V_pack = V_cell × N_series
+  R_pack = (R_cell × N_series) / N_parallel
+
+Heat generation:
+  P_heat = I² × R_pack
+```
+
+### Thermal Derating
+
+Power capability is reduced at extreme temperatures:
+
+```
+At T < T_derate:     P_available = P_max (100%)
+At T_derate < T < T_max:  P_available = P_max × (T_max - T) / (T_max - T_derate)
+At T > T_max:        P_available = 0
+```
+
 ### Atmospheric Effects
 
 Density decreases with altitude, affecting performance:
@@ -328,6 +424,7 @@ where:
 - **Moment** - N*m, ft*lbf, in*lbf
 - **Voltage** - V, mV, kV
 - **Capacity** - Ah, mAh, C
+- **Resistance** - ohm, mohm, kohm, Mohm
 
 Note: The system validates dimensionality rather than enforcing a strict whitelist. Any dimensionally-compatible unit string that Pint recognizes is accepted (e.g., 'N/m^2' for Pressure, 'kg*m/s^2' for Force).
 
@@ -385,7 +482,10 @@ evtol-tools/
 │       ├── avionics.py           # Avionics component
 │       ├── battery/              # Battery subsystem
 │       │   ├── battery.py        # Battery pack model
-│       │   └── chemistry.py      # Cell chemistry database
+│       │   ├── chemistry.py      # Cell chemistry database
+│       │   ├── discharge.py      # Discharge/charge models
+│       │   ├── thermal.py        # Thermal limits and models
+│       │   └── pybamm_utils.py   # PyBaMM integration utilities
 │       └── propulsion/           # Propulsion subsystem
 │           ├── motor.py          # Motor model
 │           ├── propeller.py      # Propeller/rotor model
@@ -425,7 +525,10 @@ open htmlcov/index.html
 - `tests/test_base.py` - BaseQuantity abstract class
 - `tests/test_mass.py` - Mass quantity comprehensive tests
 - `tests/test_quantities_new.py` - All other quantity types
-- `tests/test_battery.py` - Battery sizing and chemistry
+- `tests/test_resistance.py` - Resistance quantity tests
+- `tests/test_battery.py` - Battery sizing, chemistry, and discharge
+- `tests/test_discharge.py` - Discharge and charge model tests
+- `tests/test_thermal.py` - Thermal framework tests
 - `tests/test_propulsion.py` - Motors, propellers, propulsion systems
 - `tests/test_vehicle_weight_calculator.py` - Integration tests
 
@@ -484,6 +587,7 @@ The modular architecture enables incremental development while maintaining rigor
 - `pint>=0.23` - Physical unit conversions and validation
 - `ambiance>=0.3` - ISA atmosphere calculations
 - `pybamm>=24.1` - Battery modeling and chemistry database
+- `scipy>=1.10` - Scientific computing (interpolation for discharge curves)
 
 ### Examples
 - `aerosandbox` - Optimization framework (used in vehicle_weight_calculator.py)
@@ -502,7 +606,7 @@ The modular architecture enables incremental development while maintaining rigor
 from evtoltools.common import (
     Mass, Length, Time, Temperature, Velocity, AngularVelocity,
     Area, Volume, Density, Force, Pressure, Power, Energy,
-    Voltage, Current, Capacity, Moment, Frequency
+    Voltage, Current, Capacity, Moment, Frequency, Resistance
 )
 
 # Atmosphere
@@ -516,6 +620,14 @@ from evtoltools.common import (
 from evtoltools.components import (
     Payload, Battery, Motor, Propeller, PropulsionSystem,
     Structure, Avionics
+)
+
+# Battery modeling
+from evtoltools.components.battery import (
+    DischargeModel, AnalyticalDischargeModel, LookupTableDischargeModel,
+    ChargeModel, SimpleChargeModel,
+    ThermalLimits, SimpleThermalModel,
+    load_discharge_model
 )
 
 # Helpers
@@ -536,8 +648,24 @@ from evtoltools.common import in_units_of  # Extract values from quantities
 - `nominal_voltage` - Pack nominal voltage
 - `energy_capacity` - Total energy (Wh)
 - `mass` - Total pack mass
+- `internal_resistance` - Pack resistance (series/parallel scaling)
 - `from_target_energy(...)` - Size from target energy
 - `from_target_voltage(...)` - Size from target voltage
+- `get_voltage(soc, c_rate)` - Voltage at operating conditions
+- `current_from_c_rate(c_rate)` - Convert C-rate to current
+- `c_rate_from_current(current)` - Convert current to C-rate
+- `heat_generation_rate(current)` - I²R heat generation
+- `get_charge_current(soc)` - Charge current from CC-CV profile
+- `time_to_charge(start_soc, end_soc)` - Charge time estimate
+
+**ThermalLimits(max_discharge_temp, derate_temp, min_temp)**
+- `is_within_limits(temp, is_charging)` - Check temperature safety
+- `get_derate_factor(temp)` - Power derate factor (0-1)
+- `get_cold_derate_factor(temp)` - Cold temperature derate
+
+**SimpleThermalModel(mass, specific_heat, cooling_coefficient)**
+- `temperature_after(initial, heat_rate, duration, ambient)` - Predict temperature
+- `steady_state_temperature(heat_rate, ambient)` - Equilibrium temperature
 
 **PropulsionSystem(motors, propellers, num_units)**
 - `hover_power_ideal(thrust, atmosphere)` - Ideal hover power

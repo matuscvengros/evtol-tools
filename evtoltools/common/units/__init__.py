@@ -39,6 +39,7 @@ from evtoltools.common.units.quantities import (
     Capacity,
     Pressure,
     Frequency,
+    Resistance,
 )
 
 __all__ = [
@@ -70,4 +71,5 @@ __all__ = [
     'Capacity',
     'Pressure',
     'Frequency',
+    'Resistance',
 ]

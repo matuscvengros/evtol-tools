@@ -46,6 +46,7 @@ from evtoltools.common.units import (
     Capacity,
     Pressure,
     Frequency,
+    Resistance,
     BaseQuantity,
     ureg,
     Q_,
@@ -152,6 +153,7 @@ __all__ = [
     'Capacity',
     'Pressure',
     'Frequency',
+    'Resistance',
 
     # Atmosphere API
     'Altitude',

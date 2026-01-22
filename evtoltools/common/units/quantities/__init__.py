@@ -24,6 +24,7 @@ from evtoltools.common.units.quantities.energy import Energy
 from evtoltools.common.units.quantities.capacity import Capacity
 from evtoltools.common.units.quantities.pressure import Pressure
 from evtoltools.common.units.quantities.frequency import Frequency
+from evtoltools.common.units.quantities.resistance import Resistance
 
 __all__ = [
     'Mass',
@@ -46,4 +47,5 @@ __all__ = [
     'Capacity',
     'Pressure',
     'Frequency',
+    'Resistance',
 ]
