@@ -1,5 +1,9 @@
 # eVTOL Tools
 
+[![Tests](https://github.com/matuscvengros/evtol-tools/actions/workflows/tests.yml/badge.svg)](https://github.com/matuscvengros/evtol-tools/actions/workflows/tests.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 A comprehensive Python toolkit for electric Vertical Take-Off and Landing (eVTOL) aircraft design and analysis. This package provides physics-based engineering tools for component modeling, performance analysis, atmospheric calculations, and mission planning with rigorous unit handling.
 
 ## Why eVTOL Tools?
@@ -1014,7 +1018,7 @@ from evtoltools.common import in_units_of  # Extract values from quantities
 
 ## License
 
-[Add your license here]
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
