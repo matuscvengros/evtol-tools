@@ -4,9 +4,10 @@ import pytest
 import math
 
 from evtoltools.common import (
-    Length, Force, Velocity, Density, AngularVelocity, Power, Temperature, Mass
+    Force, Velocity, Density, AngularVelocity, Power, Temperature, Mass
 )
-from evtoltools.common.atmosphere import Atmosphere
+from evtoltools.common.atmosphere import Atmosphere, Altitude
+from evtoltools.common import Length  # Still needed for propeller diameter
 from evtoltools.components import PropulsionSystem, Motor, Propeller
 
 
@@ -16,7 +17,7 @@ class TestPropellerAtmosphereIntegration:
     def test_max_tip_speed_with_atmosphere_object(self):
         """Test max_tip_speed with Atmosphere instance."""
         prop = Propeller(diameter=Length(1.5, 'm'), tip_mach_limit=0.85)
-        atm = Atmosphere(Length(5000, 'm'))
+        atm = Atmosphere(Altitude(5000, 'm'))
 
         max_tip = prop.max_tip_speed(atmosphere=atm)
 
@@ -25,12 +26,12 @@ class TestPropellerAtmosphereIntegration:
         assert abs(max_tip.in_units_of('m/s') - expected) < 0.1
 
     def test_max_tip_speed_with_altitude(self):
-        """Test max_tip_speed with Length altitude (auto-creates Atmosphere)."""
+        """Test max_tip_speed with Altitude (auto-creates Atmosphere)."""
         prop = Propeller(diameter=Length(1.5, 'm'), tip_mach_limit=0.85)
 
-        max_tip = prop.max_tip_speed(atmosphere=Length(5000, 'm'))
+        max_tip = prop.max_tip_speed(atmosphere=Altitude(5000, 'm'))
 
-        atm = Atmosphere(Length(5000, 'm'))
+        atm = Atmosphere(Altitude(5000, 'm'))
         expected = atm.speed_of_sound.in_units_of('m/s') * 0.85
         assert abs(max_tip.in_units_of('m/s') - expected) < 0.1
 
@@ -38,8 +39,8 @@ class TestPropellerAtmosphereIntegration:
         """Test that max tip speed decreases with altitude."""
         prop = Propeller(diameter=Length(1.5, 'm'), tip_mach_limit=0.85)
 
-        tip_sea_level = prop.max_tip_speed(atmosphere=Length(0, 'm'))
-        tip_5000m = prop.max_tip_speed(atmosphere=Length(5000, 'm'))
+        tip_sea_level = prop.max_tip_speed(atmosphere=Altitude(0, 'm'))
+        tip_5000m = prop.max_tip_speed(atmosphere=Altitude(5000, 'm'))
 
         # Speed of sound decreases with altitude in troposphere
         assert tip_5000m.in_units_of('m/s') < tip_sea_level.in_units_of('m/s')
@@ -48,8 +49,8 @@ class TestPropellerAtmosphereIntegration:
         """Test max_angular_velocity with atmosphere."""
         prop = Propeller(diameter=Length(2.0, 'm'), tip_mach_limit=0.85)
 
-        omega_sl = prop.max_angular_velocity(atmosphere=Length(0, 'm'))
-        omega_5k = prop.max_angular_velocity(atmosphere=Length(5000, 'm'))
+        omega_sl = prop.max_angular_velocity(atmosphere=Altitude(0, 'm'))
+        omega_5k = prop.max_angular_velocity(atmosphere=Altitude(5000, 'm'))
 
         # Max angular velocity decreases at altitude
         assert omega_5k.in_units_of('rad/s') < omega_sl.in_units_of('rad/s')
@@ -59,8 +60,8 @@ class TestPropellerAtmosphereIntegration:
         prop = Propeller(diameter=Length(2.0, 'm'))  # r = 1m
         omega = AngularVelocity(200, 'rad/s')  # V_tip = 200 m/s
 
-        mach_sl = prop.tip_mach_number(omega, atmosphere=Length(0, 'm'))
-        mach_5k = prop.tip_mach_number(omega, atmosphere=Length(5000, 'm'))
+        mach_sl = prop.tip_mach_number(omega, atmosphere=Altitude(0, 'm'))
+        mach_5k = prop.tip_mach_number(omega, atmosphere=Altitude(5000, 'm'))
 
         # Same tip speed but lower speed of sound at altitude = higher Mach
         assert mach_5k > mach_sl
@@ -93,7 +94,7 @@ class TestPropulsionSystemAtmosphereIntegration:
     def test_hover_power_ideal_with_atmosphere(self, quad_rotor):
         """Test hover_power_ideal with Atmosphere instance."""
         thrust = Force(10000, 'N')
-        atm = Atmosphere(Length(5000, 'm'))
+        atm = Atmosphere(Altitude(5000, 'm'))
 
         power = quad_rotor.hover_power_ideal(thrust, atmosphere=atm)
 
@@ -105,10 +106,10 @@ class TestPropulsionSystemAtmosphereIntegration:
         assert abs(power.in_units_of('W') - expected) < 100
 
     def test_hover_power_ideal_with_altitude(self, quad_rotor):
-        """Test hover_power_ideal with Length altitude."""
+        """Test hover_power_ideal with Altitude."""
         thrust = Force(10000, 'N')
 
-        power = quad_rotor.hover_power_ideal(thrust, atmosphere=Length(5000, 'm'))
+        power = quad_rotor.hover_power_ideal(thrust, atmosphere=Altitude(5000, 'm'))
 
         # Should work with altitude directly
         assert power.in_units_of('W') > 0
@@ -117,8 +118,8 @@ class TestPropulsionSystemAtmosphereIntegration:
         """Test that hover power increases with altitude (lower density)."""
         thrust = Force(10000, 'N')
 
-        power_sl = quad_rotor.hover_power_ideal(thrust, atmosphere=Length(0, 'm'))
-        power_5k = quad_rotor.hover_power_ideal(thrust, atmosphere=Length(5000, 'm'))
+        power_sl = quad_rotor.hover_power_ideal(thrust, atmosphere=Altitude(0, 'm'))
+        power_5k = quad_rotor.hover_power_ideal(thrust, atmosphere=Altitude(5000, 'm'))
 
         # Lower density at altitude requires more power
         assert power_5k.in_units_of('W') > power_sl.in_units_of('W')
@@ -126,7 +127,7 @@ class TestPropulsionSystemAtmosphereIntegration:
     def test_hover_shaft_power_with_atmosphere(self, quad_rotor):
         """Test hover_shaft_power with atmosphere."""
         thrust = Force(10000, 'N')
-        atm = Atmosphere(Length(3000, 'm'))
+        atm = Atmosphere(Altitude(3000, 'm'))
 
         shaft_power = quad_rotor.hover_shaft_power(thrust, atmosphere=atm)
         ideal_power = quad_rotor.hover_power_ideal(thrust, atmosphere=atm)
@@ -137,7 +138,7 @@ class TestPropulsionSystemAtmosphereIntegration:
     def test_hover_electrical_power_with_atmosphere(self, quad_rotor):
         """Test hover_electrical_power with atmosphere."""
         thrust = Force(10000, 'N')
-        atm = Atmosphere(Length(3000, 'm'))
+        atm = Atmosphere(Altitude(3000, 'm'))
 
         elec_power = quad_rotor.hover_electrical_power(thrust, atmosphere=atm)
         shaft_power = quad_rotor.hover_shaft_power(thrust, atmosphere=atm)
@@ -149,16 +150,16 @@ class TestPropulsionSystemAtmosphereIntegration:
         """Test induced_velocity with atmosphere."""
         thrust = Force(10000, 'N')
 
-        vi_sl = quad_rotor.induced_velocity(thrust, atmosphere=Length(0, 'm'))
-        vi_5k = quad_rotor.induced_velocity(thrust, atmosphere=Length(5000, 'm'))
+        vi_sl = quad_rotor.induced_velocity(thrust, atmosphere=Altitude(0, 'm'))
+        vi_5k = quad_rotor.induced_velocity(thrust, atmosphere=Altitude(5000, 'm'))
 
         # Lower density = higher induced velocity
         assert vi_5k.in_units_of('m/s') > vi_sl.in_units_of('m/s')
 
     def test_max_tip_speed_with_atmosphere(self, quad_rotor):
         """Test max_tip_speed with atmosphere."""
-        tip_sl = quad_rotor.max_tip_speed(atmosphere=Length(0, 'm'))
-        tip_5k = quad_rotor.max_tip_speed(atmosphere=Length(5000, 'm'))
+        tip_sl = quad_rotor.max_tip_speed(atmosphere=Altitude(0, 'm'))
+        tip_5k = quad_rotor.max_tip_speed(atmosphere=Altitude(5000, 'm'))
 
         # Lower speed of sound at altitude = lower max tip speed
         assert tip_5k.in_units_of('m/s') < tip_sl.in_units_of('m/s')
@@ -169,7 +170,7 @@ class TestPropulsionSystemAtmosphereIntegration:
 
         # Use an unrealistic density to verify atmosphere takes priority
         wrong_density = Density(2.0, 'kg/m^3')
-        atm = Atmosphere(Length(5000, 'm'))
+        atm = Atmosphere(Altitude(5000, 'm'))
 
         power_with_both = quad_rotor.hover_power_ideal(
             thrust,
@@ -212,7 +213,7 @@ class TestAtmosphereWithTemperatureOffset:
     def test_hot_day_requires_more_power(self, evtol_system):
         """Test that hot day conditions require more hover power."""
         thrust = Force(15000, 'N')
-        altitude = Length(1000, 'ft')
+        altitude = Altitude(1000, 'ft')
 
         std_day = Atmosphere(altitude)
         hot_day = Atmosphere(altitude, temperature_offset=Temperature(20, 'K'))
@@ -226,7 +227,7 @@ class TestAtmosphereWithTemperatureOffset:
     def test_cold_day_requires_less_power(self, evtol_system):
         """Test that cold day conditions require less hover power."""
         thrust = Force(15000, 'N')
-        altitude = Length(1000, 'ft')
+        altitude = Altitude(1000, 'ft')
 
         std_day = Atmosphere(altitude)
         cold_day = Atmosphere(altitude, temperature_offset=Temperature(-15, 'K'))
@@ -264,7 +265,7 @@ class TestRealisticMissionScenarios:
         weight = Force(2000 * 9.81, 'N')
 
         # Power at different altitudes
-        altitudes = [Length(0, 'm'), Length(500, 'm'), Length(1000, 'm'), Length(1500, 'm')]
+        altitudes = [Altitude(0, 'm'), Altitude(500, 'm'), Altitude(1000, 'm'), Altitude(1500, 'm')]
         powers = []
 
         for alt in altitudes:
@@ -282,7 +283,7 @@ class TestRealisticMissionScenarios:
 
         max_rpms = []
         for alt in altitudes:
-            atm = Atmosphere(Length(alt, 'm'))
+            atm = Atmosphere(Altitude(alt, 'm'))
             max_omega = air_taxi.propellers[0].max_angular_velocity(atmosphere=atm)
             max_rpms.append(max_omega.in_units_of('rpm'))
 
@@ -299,11 +300,11 @@ class TestRealisticMissionScenarios:
         weight = Force(1500 * 9.81, 'N')
 
         # Sea level vertiport (e.g., coastal city)
-        atm_sl = Atmosphere(Length(0, 'm'))
+        atm_sl = Atmosphere(Altitude(0, 'm'))
         power_sl = system.hover_electrical_power(weight, atmosphere=atm_sl)
 
         # High altitude vertiport (e.g., Denver at 5280 ft)
-        atm_denver = Atmosphere(Length(5280, 'ft'))
+        atm_denver = Atmosphere(Altitude(5280, 'ft'))
         power_denver = system.hover_electrical_power(weight, atmosphere=atm_denver)
 
         # Denver requires more power

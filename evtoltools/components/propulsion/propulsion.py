@@ -5,7 +5,7 @@ from typing import List, Optional, Union
 import math
 
 from evtoltools.common import Mass, Power, Force, Area, Velocity, Density, Pressure, Length
-from evtoltools.common.atmosphere import Atmosphere
+from evtoltools.common.atmosphere import Atmosphere, Altitude
 from evtoltools.components.base import BaseComponent
 from evtoltools.components.propulsion.motor import Motor
 from evtoltools.components.propulsion.propeller import Propeller
@@ -121,7 +121,7 @@ class PropulsionSystem(BaseComponent):
         self,
         thrust: Force,
         air_density: Optional[Density] = None,
-        atmosphere: Optional[Union[Atmosphere, Length]] = None
+        atmosphere: Optional[Union[Atmosphere, Altitude]] = None
     ) -> Power:
         """Calculate ideal hover power from momentum theory.
 
@@ -131,7 +131,7 @@ class PropulsionSystem(BaseComponent):
             thrust: Total thrust required (typically equals weight)
             air_density: Air density (defaults to sea level ISA).
                 Ignored if atmosphere is provided.
-            atmosphere: Atmosphere instance or Length altitude.
+            atmosphere: Atmosphere instance or Altitude.
                 If provided, extracts density from atmosphere.
 
         Returns:
@@ -139,7 +139,7 @@ class PropulsionSystem(BaseComponent):
         """
         # Determine air density
         if atmosphere is not None:
-            if isinstance(atmosphere, Length):
+            if isinstance(atmosphere, Altitude):
                 atmosphere = Atmosphere(atmosphere)
             air_density = atmosphere.density
         elif air_density is None:
@@ -157,7 +157,7 @@ class PropulsionSystem(BaseComponent):
         self,
         thrust: Force,
         air_density: Optional[Density] = None,
-        atmosphere: Optional[Union[Atmosphere, Length]] = None
+        atmosphere: Optional[Union[Atmosphere, Altitude]] = None
     ) -> Power:
         """Calculate shaft power required to hover.
 
@@ -166,7 +166,7 @@ class PropulsionSystem(BaseComponent):
         Args:
             thrust: Total thrust required
             air_density: Air density. Ignored if atmosphere is provided.
-            atmosphere: Atmosphere instance or Length altitude.
+            atmosphere: Atmosphere instance or Altitude.
 
         Returns:
             Required shaft power
@@ -182,14 +182,14 @@ class PropulsionSystem(BaseComponent):
         self,
         thrust: Force,
         air_density: Optional[Density] = None,
-        atmosphere: Optional[Union[Atmosphere, Length]] = None
+        atmosphere: Optional[Union[Atmosphere, Altitude]] = None
     ) -> Power:
         """Calculate electrical power required to hover.
 
         Args:
             thrust: Total thrust required (typically equals weight)
             air_density: Air density. Ignored if atmosphere is provided.
-            atmosphere: Atmosphere instance or Length altitude.
+            atmosphere: Atmosphere instance or Altitude.
 
         Returns:
             Electrical power required
@@ -230,7 +230,7 @@ class PropulsionSystem(BaseComponent):
         self,
         thrust: Force,
         air_density: Optional[Density] = None,
-        atmosphere: Optional[Union[Atmosphere, Length]] = None
+        atmosphere: Optional[Union[Atmosphere, Altitude]] = None
     ) -> Velocity:
         """Calculate induced velocity in hover.
 
@@ -239,14 +239,14 @@ class PropulsionSystem(BaseComponent):
         Args:
             thrust: Total thrust
             air_density: Air density. Ignored if atmosphere is provided.
-            atmosphere: Atmosphere instance or Length altitude.
+            atmosphere: Atmosphere instance or Altitude.
 
         Returns:
             Induced velocity
         """
         # Determine air density
         if atmosphere is not None:
-            if isinstance(atmosphere, Length):
+            if isinstance(atmosphere, Altitude):
                 atmosphere = Atmosphere(atmosphere)
             air_density = atmosphere.density
         elif air_density is None:
@@ -262,13 +262,13 @@ class PropulsionSystem(BaseComponent):
     def max_tip_speed(
         self,
         speed_of_sound: Optional[Velocity] = None,
-        atmosphere: Optional[Union[Atmosphere, Length]] = None
+        atmosphere: Optional[Union[Atmosphere, Altitude]] = None
     ) -> Velocity:
         """Get maximum tip speed across all propellers.
 
         Args:
             speed_of_sound: Local speed of sound. Ignored if atmosphere is provided.
-            atmosphere: Atmosphere instance or Length altitude.
+            atmosphere: Atmosphere instance or Altitude.
 
         Returns:
             Maximum allowable tip speed (minimum across all propellers)

@@ -12,12 +12,13 @@ from evtoltools.common import (
     ISA_SEA_LEVEL_PRESSURE,
     ISA_SEA_LEVEL_DENSITY,
     ISA_SEA_LEVEL_SPEED_OF_SOUND,
-    Length,
     Temperature,
     Pressure,
     Density,
     Velocity,
 )
+from evtoltools.common.atmosphere import Altitude
+from evtoltools.common import Length  # Still needed for unit conversion tests
 
 
 class TestISAConstants:
@@ -45,22 +46,22 @@ class TestAtmosphereConstruction:
 
     def test_construction_meters(self):
         """Test construction with altitude in meters."""
-        atm = Atmosphere(Length(5000, 'm'))
+        atm = Atmosphere(Altitude(5000, 'm'))
         assert atm.altitude.in_units_of('m') == pytest.approx(5000, rel=1e-6)
 
     def test_construction_feet(self):
         """Test construction with altitude in feet."""
-        atm = Atmosphere(Length(10000, 'ft'))
+        atm = Atmosphere(Altitude(10000, 'ft'))
         assert atm.altitude.in_units_of('ft') == pytest.approx(10000, rel=1e-6)
 
     def test_construction_with_temperature_offset(self):
         """Test construction with temperature offset."""
-        atm = Atmosphere(Length(5000, 'm'), temperature_offset=Temperature(20, 'K'))
+        atm = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(20, 'K'))
         assert atm.temperature_offset.in_units_of('K') == pytest.approx(20, rel=1e-6)
 
     def test_construction_no_offset(self):
         """Test construction without temperature offset."""
-        atm = Atmosphere(Length(5000, 'm'))
+        atm = Atmosphere(Altitude(5000, 'm'))
         assert atm.temperature_offset is None
 
 
@@ -69,22 +70,22 @@ class TestAtmosphereSeaLevel:
 
     def test_sea_level_temperature(self):
         """Test temperature at sea level."""
-        atm = Atmosphere(Length(0, 'm'))
+        atm = Atmosphere(Altitude(0, 'm'))
         assert atm.temperature.in_units_of('K') == pytest.approx(288.15, rel=1e-4)
 
     def test_sea_level_pressure(self):
         """Test pressure at sea level."""
-        atm = Atmosphere(Length(0, 'm'))
+        atm = Atmosphere(Altitude(0, 'm'))
         assert atm.pressure.in_units_of('Pa') == pytest.approx(101325, rel=1e-4)
 
     def test_sea_level_density(self):
         """Test density at sea level."""
-        atm = Atmosphere(Length(0, 'm'))
+        atm = Atmosphere(Altitude(0, 'm'))
         assert atm.density.in_units_of('kg/m^3') == pytest.approx(1.225, rel=1e-3)
 
     def test_sea_level_speed_of_sound(self):
         """Test speed of sound at sea level."""
-        atm = Atmosphere(Length(0, 'm'))
+        atm = Atmosphere(Altitude(0, 'm'))
         assert atm.speed_of_sound.in_units_of('m/s') == pytest.approx(340.294, rel=1e-3)
 
 
@@ -93,7 +94,7 @@ class TestAtmosphereAltitude:
 
     def test_properties_5000m(self):
         """Test properties at 5000m altitude."""
-        atm = Atmosphere(Length(5000, 'm'))
+        atm = Atmosphere(Altitude(5000, 'm'))
 
         # Expected values from ISA tables
         assert atm.temperature.in_units_of('K') == pytest.approx(255.65, rel=1e-2)
@@ -103,7 +104,7 @@ class TestAtmosphereAltitude:
 
     def test_properties_10000m(self):
         """Test properties at 10000m altitude."""
-        atm = Atmosphere(Length(10000, 'm'))
+        atm = Atmosphere(Altitude(10000, 'm'))
 
         # Expected values from ISA tables
         assert atm.temperature.in_units_of('K') == pytest.approx(223.15, rel=1e-2)
@@ -112,14 +113,14 @@ class TestAtmosphereAltitude:
 
     def test_properties_11000m_tropopause(self):
         """Test properties at 11000m (tropopause)."""
-        atm = Atmosphere(Length(11000, 'm'))
+        atm = Atmosphere(Altitude(11000, 'm'))
 
         # Temperature should be at tropopause value (~216.65 K)
         assert atm.temperature.in_units_of('K') == pytest.approx(216.65, rel=1e-2)
 
     def test_isa_properties_match(self):
         """Test that ISA properties match when no offset."""
-        atm = Atmosphere(Length(5000, 'm'))
+        atm = Atmosphere(Altitude(5000, 'm'))
 
         assert atm.temperature.in_units_of('K') == atm.isa_temperature.in_units_of('K')
         assert atm.density.in_units_of('kg/m^3') == atm.isa_density.in_units_of('kg/m^3')
@@ -131,40 +132,40 @@ class TestAtmosphereTemperatureOffset:
 
     def test_hot_day_temperature(self):
         """Test temperature increases with positive offset."""
-        atm_std = Atmosphere(Length(5000, 'm'))
-        atm_hot = Atmosphere(Length(5000, 'm'), temperature_offset=Temperature(20, 'K'))
+        atm_std = Atmosphere(Altitude(5000, 'm'))
+        atm_hot = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(20, 'K'))
 
         temp_diff = atm_hot.temperature.in_units_of('K') - atm_std.temperature.in_units_of('K')
         assert temp_diff == pytest.approx(20, rel=1e-6)
 
     def test_cold_day_temperature(self):
         """Test temperature decreases with negative offset."""
-        atm_std = Atmosphere(Length(5000, 'm'))
-        atm_cold = Atmosphere(Length(5000, 'm'), temperature_offset=Temperature(-10, 'K'))
+        atm_std = Atmosphere(Altitude(5000, 'm'))
+        atm_cold = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(-10, 'K'))
 
         temp_diff = atm_std.temperature.in_units_of('K') - atm_cold.temperature.in_units_of('K')
         assert temp_diff == pytest.approx(10, rel=1e-6)
 
     def test_hot_day_reduces_density(self):
         """Test that hot day reduces density."""
-        atm_std = Atmosphere(Length(5000, 'm'))
-        atm_hot = Atmosphere(Length(5000, 'm'), temperature_offset=Temperature(20, 'K'))
+        atm_std = Atmosphere(Altitude(5000, 'm'))
+        atm_hot = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(20, 'K'))
 
         # Hot day should have lower density
         assert atm_hot.density.in_units_of('kg/m^3') < atm_std.density.in_units_of('kg/m^3')
 
     def test_cold_day_increases_density(self):
         """Test that cold day increases density."""
-        atm_std = Atmosphere(Length(5000, 'm'))
-        atm_cold = Atmosphere(Length(5000, 'm'), temperature_offset=Temperature(-10, 'K'))
+        atm_std = Atmosphere(Altitude(5000, 'm'))
+        atm_cold = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(-10, 'K'))
 
         # Cold day should have higher density
         assert atm_cold.density.in_units_of('kg/m^3') > atm_std.density.in_units_of('kg/m^3')
 
     def test_pressure_unaffected_by_offset(self):
         """Test that pressure is unaffected by temperature offset."""
-        atm_std = Atmosphere(Length(5000, 'm'))
-        atm_hot = Atmosphere(Length(5000, 'm'), temperature_offset=Temperature(20, 'K'))
+        atm_std = Atmosphere(Altitude(5000, 'm'))
+        atm_hot = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(20, 'K'))
 
         # Pressure should be the same (based on geometric altitude)
         assert atm_hot.pressure.in_units_of('Pa') == pytest.approx(
@@ -173,16 +174,16 @@ class TestAtmosphereTemperatureOffset:
 
     def test_hot_day_increases_speed_of_sound(self):
         """Test that hot day increases speed of sound."""
-        atm_std = Atmosphere(Length(5000, 'm'))
-        atm_hot = Atmosphere(Length(5000, 'm'), temperature_offset=Temperature(20, 'K'))
+        atm_std = Atmosphere(Altitude(5000, 'm'))
+        atm_hot = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(20, 'K'))
 
         # Speed of sound increases with temperature
         assert atm_hot.speed_of_sound.in_units_of('m/s') > atm_std.speed_of_sound.in_units_of('m/s')
 
     def test_isa_properties_unchanged_with_offset(self):
         """Test that ISA properties are unaffected by offset."""
-        atm_hot = Atmosphere(Length(5000, 'm'), temperature_offset=Temperature(20, 'K'))
-        atm_std = Atmosphere(Length(5000, 'm'))
+        atm_hot = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(20, 'K'))
+        atm_std = Atmosphere(Altitude(5000, 'm'))
 
         assert atm_hot.isa_temperature.in_units_of('K') == atm_std.isa_temperature.in_units_of('K')
         assert atm_hot.isa_density.in_units_of('kg/m^3') == atm_std.isa_density.in_units_of('kg/m^3')
@@ -190,7 +191,7 @@ class TestAtmosphereTemperatureOffset:
 
     def test_density_ideal_gas_relationship(self):
         """Test that density follows ideal gas law: rho = P / (R * T)."""
-        atm = Atmosphere(Length(5000, 'm'), temperature_offset=Temperature(20, 'K'))
+        atm = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(20, 'K'))
 
         R = 287.05287  # J/(kg*K)
         P = atm.pressure.in_units_of('Pa')
@@ -211,7 +212,7 @@ class TestAtmosphereFromPressure:
     def test_from_pressure_mid_altitude(self):
         """Test creating atmosphere from mid-altitude pressure."""
         # Get pressure at 5000m, then recreate atmosphere from it
-        atm_original = Atmosphere(Length(5000, 'm'))
+        atm_original = Atmosphere(Altitude(5000, 'm'))
         pressure = atm_original.pressure
 
         atm_recreated = Atmosphere.from_pressure_altitude(pressure)
@@ -234,7 +235,7 @@ class TestAtmosphereFromDensity:
     def test_from_density_mid_altitude(self):
         """Test creating atmosphere from mid-altitude density."""
         # Get density at 5000m, then recreate atmosphere from it
-        atm_original = Atmosphere(Length(5000, 'm'))
+        atm_original = Atmosphere(Altitude(5000, 'm'))
         density = atm_original.density
 
         atm_recreated = Atmosphere.from_density_altitude(density)
@@ -252,7 +253,7 @@ class TestAtmosphereArraySupport:
     def test_array_altitude_construction(self):
         """Test construction with array of altitudes."""
         altitudes = np.array([0, 1000, 2000, 3000, 4000, 5000])
-        atm = Atmosphere(Length(altitudes, 'm'))
+        atm = Atmosphere(Altitude(altitudes, 'm'))
 
         # Should return array of temperatures
         temps = atm.temperature.magnitude
@@ -262,7 +263,7 @@ class TestAtmosphereArraySupport:
     def test_array_temperature_decreases(self):
         """Test temperature decreases with altitude in troposphere."""
         altitudes = np.array([0, 2000, 4000, 6000, 8000, 10000])
-        atm = Atmosphere(Length(altitudes, 'm'))
+        atm = Atmosphere(Altitude(altitudes, 'm'))
 
         temps = atm.temperature.magnitude
         # Each temperature should be less than the previous (in troposphere)
@@ -272,7 +273,7 @@ class TestAtmosphereArraySupport:
     def test_array_pressure_decreases(self):
         """Test pressure decreases with altitude."""
         altitudes = np.array([0, 2000, 4000, 6000, 8000, 10000])
-        atm = Atmosphere(Length(altitudes, 'm'))
+        atm = Atmosphere(Altitude(altitudes, 'm'))
 
         pressures = atm.pressure.magnitude
         for i in range(1, len(pressures)):
@@ -281,7 +282,7 @@ class TestAtmosphereArraySupport:
     def test_array_density_decreases(self):
         """Test density decreases with altitude."""
         altitudes = np.array([0, 2000, 4000, 6000, 8000, 10000])
-        atm = Atmosphere(Length(altitudes, 'm'))
+        atm = Atmosphere(Altitude(altitudes, 'm'))
 
         densities = atm.density.magnitude
         for i in range(1, len(densities)):
@@ -290,8 +291,8 @@ class TestAtmosphereArraySupport:
     def test_array_with_temperature_offset(self):
         """Test array support with temperature offset."""
         altitudes = np.array([0, 5000, 10000])
-        atm_std = Atmosphere(Length(altitudes, 'm'))
-        atm_hot = Atmosphere(Length(altitudes, 'm'), temperature_offset=Temperature(15, 'K'))
+        atm_std = Atmosphere(Altitude(altitudes, 'm'))
+        atm_hot = Atmosphere(Altitude(altitudes, 'm'), temperature_offset=Temperature(15, 'K'))
 
         # All temperatures should be 15K higher
         temp_diff = atm_hot.temperature.magnitude - atm_std.temperature.magnitude
@@ -303,7 +304,7 @@ class TestConvenienceFunctions:
 
     def test_atmosphere_at_altitude(self):
         """Test atmosphere_at_altitude function."""
-        atm = atmosphere_at_altitude(Length(5000, 'm'))
+        atm = atmosphere_at_altitude(Altitude(5000, 'm'))
 
         assert isinstance(atm, Atmosphere)
         assert atm.altitude.in_units_of('m') == pytest.approx(5000, rel=1e-6)
@@ -311,7 +312,7 @@ class TestConvenienceFunctions:
     def test_atmosphere_at_altitude_with_offset(self):
         """Test atmosphere_at_altitude with temperature offset."""
         atm = atmosphere_at_altitude(
-            Length(5000, 'm'),
+            Altitude(5000, 'm'),
             temperature_offset=Temperature(10, 'K')
         )
 
@@ -331,7 +332,7 @@ class TestAtmosphereRepresentation:
 
     def test_repr_standard(self):
         """Test repr for standard atmosphere."""
-        atm = Atmosphere(Length(5000, 'm'))
+        atm = Atmosphere(Altitude(5000, 'm'))
         repr_str = repr(atm)
 
         assert 'Atmosphere' in repr_str
@@ -339,21 +340,21 @@ class TestAtmosphereRepresentation:
 
     def test_repr_with_offset(self):
         """Test repr with temperature offset."""
-        atm = Atmosphere(Length(5000, 'm'), temperature_offset=Temperature(20, 'K'))
+        atm = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(20, 'K'))
         repr_str = repr(atm)
 
         assert 'ISA+20' in repr_str
 
     def test_repr_with_negative_offset(self):
         """Test repr with negative temperature offset."""
-        atm = Atmosphere(Length(5000, 'm'), temperature_offset=Temperature(-10, 'K'))
+        atm = Atmosphere(Altitude(5000, 'm'), temperature_offset=Temperature(-10, 'K'))
         repr_str = repr(atm)
 
         assert 'ISA-10' in repr_str
 
     def test_str_output(self):
         """Test str output."""
-        atm = Atmosphere(Length(5000, 'm'))
+        atm = Atmosphere(Altitude(5000, 'm'))
         str_output = str(atm)
 
         assert 'Atmosphere' in str_output
@@ -367,13 +368,13 @@ class TestAtmosphereViscosity:
 
     def test_kinematic_viscosity_sea_level(self):
         """Test kinematic viscosity at sea level."""
-        atm = Atmosphere(Length(0, 'm'))
+        atm = Atmosphere(Altitude(0, 'm'))
         # Sea level kinematic viscosity is approximately 1.46e-5 m^2/s
         assert atm.kinematic_viscosity == pytest.approx(1.46e-5, rel=0.1)
 
     def test_dynamic_viscosity_sea_level(self):
         """Test dynamic viscosity at sea level."""
-        atm = Atmosphere(Length(0, 'm'))
+        atm = Atmosphere(Altitude(0, 'm'))
         # Sea level dynamic viscosity is approximately 1.79e-5 Pa*s
         assert atm.dynamic_viscosity == pytest.approx(1.79e-5, rel=0.1)
 
@@ -383,15 +384,15 @@ class TestAtmosphereEdgeCases:
 
     def test_very_high_altitude(self):
         """Test at very high altitude (stratosphere)."""
-        atm = Atmosphere(Length(20000, 'm'))
+        atm = Atmosphere(Altitude(20000, 'm'))
 
         # Temperature in stratosphere is roughly constant around 216.65 K
         assert atm.temperature.in_units_of('K') == pytest.approx(216.65, rel=0.05)
 
     def test_unit_conversion_consistency(self):
         """Test that unit conversions are consistent."""
-        atm_m = Atmosphere(Length(5000, 'm'))
-        atm_ft = Atmosphere(Length(5000, 'm').to('ft'))
+        atm_m = Atmosphere(Altitude(5000, 'm'))
+        atm_ft = Atmosphere(Altitude(5000, 'm').to('ft'))
 
         # Should give same results regardless of input units
         assert atm_m.temperature.in_units_of('K') == pytest.approx(
@@ -407,9 +408,9 @@ class TestAtmosphereIntegration:
 
     def test_evtol_cruise_altitude_comparison(self):
         """Compare conditions at typical eVTOL operating altitudes."""
-        sea_level = Atmosphere(Length(0, 'm'))
-        cruise_1000ft = Atmosphere(Length(1000, 'ft'))
-        cruise_3000ft = Atmosphere(Length(3000, 'ft'))
+        sea_level = Atmosphere(Altitude(0, 'm'))
+        cruise_1000ft = Atmosphere(Altitude(1000, 'ft'))
+        cruise_3000ft = Atmosphere(Altitude(3000, 'ft'))
 
         # Verify expected trends
         assert cruise_1000ft.density.in_units_of('kg/m^3') < sea_level.density.in_units_of('kg/m^3')
@@ -418,7 +419,7 @@ class TestAtmosphereIntegration:
     def test_hot_day_performance_impact(self):
         """Test hot day impact on air density at typical heliport altitude."""
         # Typical heliport at 1000ft
-        altitude = Length(1000, 'ft')
+        altitude = Altitude(1000, 'ft')
 
         std_day = Atmosphere(altitude)
         hot_day = Atmosphere(altitude, temperature_offset=Temperature(20, 'K'))  # ISA+20
@@ -434,7 +435,7 @@ class TestAtmosphereIntegration:
         """Test atmosphere across a mission altitude profile."""
         # Typical eVTOL mission: takeoff, climb, cruise, descent, landing
         altitudes = np.array([0, 500, 1000, 1500, 1000, 500, 0])
-        atm = Atmosphere(Length(altitudes, 'ft'))
+        atm = Atmosphere(Altitude(altitudes, 'ft'))
 
         # Get density profile for power calculations
         densities = atm.density.magnitude
