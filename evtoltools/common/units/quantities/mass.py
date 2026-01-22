@@ -6,7 +6,7 @@ mass/weight values with automatic unit conversion.
 
 from pint.util import UnitsContainer
 
-from evtoltools.common.base import BaseQuantity
+from evtoltools.common.units.base import BaseQuantity
 
 
 class Mass(BaseQuantity):

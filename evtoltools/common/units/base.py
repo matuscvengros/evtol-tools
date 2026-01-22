@@ -11,8 +11,8 @@ import numpy as np
 from pint import Quantity as PintQuantity
 from pint.util import UnitsContainer
 
-from evtoltools.common.registry import ureg, Q_
-from evtoltools.common.config import DEFAULT_UNITS, ALLOWED_UNITS
+from evtoltools.common.units.registry import ureg, Q_
+from evtoltools.common.units.config import DEFAULT_UNITS, ALLOWED_UNITS
 
 
 class BaseQuantity(ABC):

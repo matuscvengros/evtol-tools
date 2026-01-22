@@ -1,7 +1,7 @@
-"""Common utilities for evtol-tools including units system.
+"""Common utilities for evtol-tools including units system and atmosphere.
 
 This module provides a type-safe, object-oriented interface to physical
-quantities using the pint library under the hood.
+quantities using the pint library under the hood, plus atmospheric calculations.
 
 Examples:
     >>> from evtoltools.common import Mass
@@ -24,7 +24,8 @@ from typing import Union
 import numpy as np
 from pint import Quantity as PintQuantity
 
-from evtoltools.common.quantities import (
+# Import all quantities from units package
+from evtoltools.common.units import (
     Mass,
     Length,
     Time,
@@ -45,8 +46,12 @@ from evtoltools.common.quantities import (
     Capacity,
     Pressure,
     Frequency,
+    BaseQuantity,
+    ureg,
+    Q_,
 )
 
+# Import atmosphere module
 from evtoltools.common.atmosphere import (
     Atmosphere,
     atmosphere_at_altitude,
@@ -56,12 +61,6 @@ from evtoltools.common.atmosphere import (
     ISA_SEA_LEVEL_DENSITY,
     ISA_SEA_LEVEL_SPEED_OF_SOUND,
 )
-
-# For advanced users who need direct pint access
-from evtoltools.common.registry import ureg, Q_
-
-# Import BaseQuantity for type checking (avoid circular import by importing here)
-from evtoltools.common.base import BaseQuantity
 
 
 def in_units_of(quantity: Union[BaseQuantity, PintQuantity], unit: str) -> Union[float, np.ndarray]:

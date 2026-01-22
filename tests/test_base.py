@@ -7,7 +7,7 @@ import pytest
 import numpy as np
 from pint.util import UnitsContainer
 from evtoltools.common import Mass
-from evtoltools.common.base import BaseQuantity
+from evtoltools.common.units.base import BaseQuantity
 
 
 class TestBaseQuantityAbstract:
@@ -386,7 +386,7 @@ class TestUnitsContainerDimensionality:
     def test_equivalent_units_have_matching_dimensionality(self):
         """Test that equivalent units have matching dimensionality via UnitsContainer."""
         from evtoltools.common import Force
-        from evtoltools.common.registry import Q_
+        from evtoltools.common.units.registry import Q_
 
         # N and kg*m/s^2 should have the same dimensionality
         f1 = Force(10, 'N')

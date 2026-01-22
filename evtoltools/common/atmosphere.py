@@ -23,7 +23,7 @@ import numpy as np
 
 from ambiance import Atmosphere as AmbianceAtmosphere
 
-from evtoltools.common.quantities import (
+from evtoltools.common.units.quantities import (
     Length,
     Temperature,
     Pressure,
