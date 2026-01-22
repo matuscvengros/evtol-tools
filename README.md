@@ -1,53 +1,53 @@
 # eVTOL Tools
 
-A Python package for eVTOL (electric Vertical Take-Off and Landing) aircraft analysis and design. This toolkit provides modular components for studying targeted design trade-offs in eVTOL design, with focus on weight analysis, performance metrics, and mission optimization.
+A comprehensive Python toolkit for electric Vertical Take-Off and Landing (eVTOL) aircraft design and analysis. This package provides physics-based engineering tools for component modeling, performance analysis, atmospheric calculations, and mission planning with rigorous unit handling.
 
-## Features
+## Why eVTOL Tools?
 
-### Units System
+eVTOL aircraft design requires integrating multiple engineering disciplines - propulsion, aerodynamics, structures, batteries, and atmospherics. This toolkit provides:
 
-The core feature is a robust, type-safe units system built on `pint` that supports:
+- **Physics-based calculations** - Momentum theory, ISA atmosphere, battery chemistry
+- **Component-level modeling** - Batteries, motors, propellers, propulsion systems
+- **Type-safe units system** - Prevent unit errors with automatic conversions
+- **Mission analysis** - Energy consumption, altitude effects, hot day performance
+- **Design trade-offs** - Weight fractions, disk loading, power margins
 
-- **Object-oriented API** - Clean, intuitive interface for working with physical quantities
-- **Automatic unit conversion** - Seamlessly convert between compatible units
-- **NumPy array support** - Perform batch calculations on arrays of values
-- **Type safety** - Each quantity type (Mass, Length, Velocity, etc.) is a distinct class
-- **Arithmetic operations** - Natural mathematical operations with automatic unit handling
-- **Dimensionality validation** - Ensures dimensional consistency and prevents unit errors
-- **Flexible unit notation** - Accepts any dimensionally-equivalent unit string (e.g., 'N/m^2' for Pressure)
-- **Cross-type arithmetic helper** - `in_units_of()` function for extracting values from derived quantities
+## Key Features
 
-### Currently Implemented Quantities
+### Propulsion Analysis
+- **Multi-rotor systems** - Arbitrary motor/propeller configurations
+- **Hover power calculations** - Ideal, shaft, and electrical power from momentum theory
+- **Efficiency chain modeling** - Motor efficiency, figure of merit, installation losses
+- **Performance metrics** - Disk loading, power loading, induced velocity
+- **Tip speed limits** - Mach number constraints, maximum RPM calculations
 
-#### SI Base Quantities
-- **Mass** - kg, g, lb, lbs, ton, tonne, oz
-- **Length** - m, cm, mm, ft, in, mi, km, nmi
-- **Time** - s, ms, min, hr, day
-- **Temperature** - K, degC, degF
-- **Current** - A, mA, uA, kA
-- **Substance** - mol, mmol, kmol
-- **Luminosity** - cd, lm
+### Battery Modeling
+- **Cell configuration** - Series/parallel string design
+- **Sizing methods** - From target energy, voltage, or capacity
+- **Chemistry support** - Lithium-ion, NMC, LFP cell parameters
+- **Power limits** - C-rating based charge/discharge constraints
+- **Mass calculations** - Cells plus BMS/packaging overhead
 
-#### Derived Quantities
-- **Velocity** - m/s, km/h, mph, knots, ft/s
-- **Area** - m^2, cm^2, ft^2, in^2
-- **Volume** - m^3, L, gal, ft^3
-- **Density** - kg/m^3, g/cm^3, lb/ft^3
-- **Force** - N, kN, lbf, kgf
-- **Power** - W, kW, MW, hp, bhp
-- **Energy** - J, kJ, MJ, Wh, kWh, mWh
-- **Moment** - N*m, ft*lbf, in*lbf
-- **AngularVelocity** - rad/s, rpm, deg/s
-- **Voltage** - V, mV, kV
-- **Capacity** - Ah, mAh, C
-- **Pressure** - Pa, kPa, bar, psi, atm
-- **Frequency** - Hz, kHz, MHz, mHz
+### Atmospheric Calculations
+- **ISA model** - International Standard Atmosphere (0-80 km altitude)
+- **Temperature offsets** - Hot day (ISA+) and cold day (ISA-) analysis
+- **Altitude effects** - Density impact on power, tip speeds, performance
+- **Pressure/density altitude** - Conversion between altitude references
+- **NumPy array support** - Batch calculations for altitude profiles
 
-### Planned Features
+### Type-Safe Units System
+- **20+ physical quantities** - Mass, length, velocity, power, energy, etc.
+- **Automatic conversions** - Seamless unit handling with validation
+- **NumPy integration** - Vectorized calculations with units
+- **Dimensional analysis** - Prevents unit mismatches at compile time
+- **Flexible notation** - Accepts any dimensionally-compatible unit string
 
-- Acceleration
-- Aerodynamic quantities (lift coefficient, drag coefficient)
-- Additional mission analysis tools
+### Component Models
+- **Payload** - Mass and center of gravity tracking
+- **Battery** - Cell configuration, energy capacity, power limits
+- **Motor** - Power, efficiency, power-to-weight ratio
+- **Propeller** - Geometry, disk area, tip speed calculations
+- **PropulsionSystem** - Multi-rotor integration with full power chain
 
 ## Installation
 
@@ -56,10 +56,10 @@ The core feature is a robust, type-safe units system built on `pint` that suppor
 - Python 3.10 or higher
 - NumPy >= 1.20
 - Pint >= 0.23
-- PyBaMM >= 24.1 (battery modeling)
-- AeroSandbox (for examples - used in vehicle weight calculator)
+- Ambiance >= 0.3 (ISA atmosphere)
+- PyBaMM >= 24.1 (battery chemistry data)
 
-### Install from source
+### Install from Source
 
 ```bash
 # Clone the repository
@@ -75,259 +75,333 @@ pip install -e ".[dev]"
 
 ## Quick Start
 
-### Basic Usage
+### Propulsion System Design
 
 ```python
-from evtoltools.common import Mass
+from evtoltools.common import Mass, Length, Power, Force, Density
+from evtoltools.components import Motor, Propeller, PropulsionSystem
+
+# Define motor
+motor = Motor(
+    max_power=Power(50, 'kW'),
+    efficiency=0.92,
+    mass=Mass(8, 'kg')
+)
+
+# Define propeller
+propeller = Propeller(
+    diameter=Length(1.8, 'm'),
+    num_blades=3,
+    efficiency_hover=0.72  # Figure of Merit
+)
+
+# Create 4-rotor propulsion system
+propulsion = PropulsionSystem(
+    motors=[motor],
+    propellers=[propeller],
+    num_units=4,
+    installation_efficiency=0.95
+)
+
+# Calculate hover power for 1500 kg aircraft
+weight = Force(1500 * 9.81, 'N')
+air_density = Density(1.225, 'kg/m^3')
+
+ideal_power = propulsion.hover_power_ideal(weight, air_density)
+shaft_power = propulsion.hover_shaft_power(weight, air_density)
+electrical_power = propulsion.hover_electrical_power(weight, air_density)
+
+print(f"Ideal power:      {ideal_power.to('kW')}")
+print(f"Shaft power:      {shaft_power.to('kW')}")
+print(f"Electrical power: {electrical_power.to('kW')}")
+print(f"Disk loading:     {propulsion.disk_loading(weight).to('Pa')}")
+print(f"Induced velocity: {propulsion.induced_velocity(weight, air_density)}")
+```
+
+### Battery Sizing
+
+```python
+from evtoltools.common import Energy, Voltage, Capacity, Mass
+from evtoltools.components import Battery
+
+# Method 1: Size from target energy
+battery = Battery.from_target_energy(
+    target_energy=Energy(50, 'kWh'),
+    target_voltage=Voltage(400, 'V'),
+    cell_capacity=Capacity(5000, 'mAh'),
+    cell_mass=Mass(70, 'g'),
+    chemistry='lithium_ion'
+)
+
+print(f"Configuration:    {battery.cells_series}S{battery.cells_parallel}P")
+print(f"Total cells:      {battery.total_cells}")
+print(f"Pack mass:        {battery.mass.to('kg')}")
+print(f"Nominal voltage:  {battery.nominal_voltage}")
+print(f"Total capacity:   {battery.total_capacity.to('Ah')}")
+print(f"Energy capacity:  {battery.energy_capacity.to('kWh')}")
+print(f"Max discharge:    {battery.max_discharge_power.to('kW')}")
+
+# Method 2: Size from target voltage
+battery = Battery.from_target_voltage(
+    target_voltage=Voltage(48, 'V'),
+    cells_parallel=4,
+    cell_capacity=Capacity(5000, 'mAh'),
+    cell_mass=Mass(50, 'g')
+)
+```
+
+### Atmospheric Calculations
+
+```python
+from evtoltools.common import Atmosphere, Length, Temperature
+
+# Standard atmosphere at 5000 ft
+atm = Atmosphere(Length(5000, 'ft'))
+print(f"Temperature: {atm.temperature.to('degC')}")
+print(f"Pressure:    {atm.pressure.to('kPa')}")
+print(f"Density:     {atm.density.to('kg/m^3')}")
+
+# Hot day analysis (ISA + 20K)
+atm_hot = Atmosphere(
+    altitude=Length(5000, 'ft'),
+    temperature_offset=Temperature(20, 'K')
+)
+print(f"Hot day density: {atm_hot.density.to('kg/m^3')}")
+
+# Calculate hover power at altitude
+power_at_altitude = propulsion.hover_electrical_power(
+    weight,
+    atmosphere=atm_hot
+)
+print(f"Power required: {power_at_altitude.to('kW')}")
+```
+
+### Type-Safe Units
+
+```python
+from evtoltools.common import Mass, Length, Velocity
 import numpy as np
 
-# Create mass quantities
-aircraft_weight = Mass(1500, 'kg')
-payload = Mass(500, 'kg')
-
-# Convert units
-weight_lbs = aircraft_weight.to('lbs')
-print(f"Aircraft weight: {weight_lbs}")  # 3306.93 lbs
+# Scalar operations
+aircraft_mass = Mass(1500, 'kg')
+payload_mass = Mass(500, 'lbs')  # Different units OK
+total_mass = aircraft_mass + payload_mass  # Automatic conversion
 
 # Get numeric value in specific units
-value = aircraft_weight.in_units_of('lbs')  # Returns float: 3306.93
+mass_kg = total_mass.in_units_of('kg')  # Returns float
 
-# Arithmetic operations
-total_weight = aircraft_weight + payload
-print(f"Total: {total_weight}")  # 2000 kg
-
-# Works with different units - automatic conversion
-battery_kg = Mass(300, 'kg')
-avionics_lbs = Mass(50, 'lbs')
-combined = battery_kg + avionics_lbs  # Result in kg
-```
-
-### Array Operations
-
-```python
-# Create mass arrays for batch calculations
+# Array operations
 component_masses = Mass(np.array([100, 200, 300, 400]), 'kg')
-
-# Convert entire array
 masses_lbs = component_masses.to('lbs')
 
-# Arithmetic with arrays
-margin = Mass(10, 'kg')
-with_margin = component_masses + margin  # Broadcasting works
-
-# Get total
-total = component_masses.magnitude.sum()  # 1000 kg
-```
-
-### Comparisons
-
-```python
-m1 = Mass(1, 'kg')
-m2 = Mass(1, 'lbs')
-
 # Comparisons work across units
-if m1 > m2:
+if Mass(1, 'kg') > Mass(1, 'lbs'):
     print("1 kg is heavier than 1 lb")  # True
 
-# Array comparisons return boolean arrays
-masses = Mass(np.array([100, 200, 300]), 'kg')
-threshold = Mass(150, 'kg')
-heavy_components = masses > threshold  # [False, True, True]
-```
-
-### Equivalent Unit Strings
-
-The units system validates dimensionality rather than using a strict whitelist. Any dimensionally-equivalent unit string that pint recognizes is accepted:
-
-```python
+# Flexible unit notation (any dimensionally-compatible string)
 from evtoltools.common import Pressure, Force
-
-# These are all equivalent ways to create a Pressure
 p1 = Pressure(1, 'Pa')
-p2 = Pressure(1, 'N/m^2')      # Same as Pa
+p2 = Pressure(1, 'N/m^2')      # Equivalent
 p3 = Pressure(1, 'kg/(m*s^2)') # Also valid
-
-# Force can be created with base units
-f = Force(10, 'kg*m/s^2')  # Equivalent to 10 N
-print(f.in_units_of('N'))  # 10.0
 ```
 
-Note: The quantity type documentation lists commonly-used units as suggestions, but you're not limited to those options.
+## Complete Example: eVTOL Sizing
 
-### Cross-Type Arithmetic
-
-When multiplying or dividing different quantity types, the result is a pint Quantity. Use the `in_units_of()` helper function to extract the numeric value:
+This example demonstrates a real-world eVTOL sizing workflow:
 
 ```python
-from evtoltools.common import Area, Mass, Force, in_units_of
+from evtoltools.common import *
+from evtoltools.components import *
 
-# Cross-type multiplication returns a pint Quantity
-area = Area(10, 'm^2')
-mass = Mass(5, 'kg')
-result = area * mass  # pint Quantity with units kg*m^2
+# Define design requirements
+payload = Payload(Mass(320, 'kg'), description='4 passengers @ 80kg')
 
-# Use in_units_of() to get the numeric value
-value = in_units_of(result, 'kg*m^2')  # Returns 50.0
+# Create propulsion system
+motor = Motor(max_power=Power(40, 'kW'), efficiency=0.90, mass=Mass(5, 'kg'))
+propeller = Propeller(diameter=Length(1.8, 'm'), efficiency_hover=0.70)
+propulsion = PropulsionSystem(
+    motors=[motor],
+    propellers=[propeller],
+    num_units=12,
+    installation_efficiency=0.95
+)
 
-# Works for derived quantities like pressure
-force = Force(100, 'N')
-area = Area(2, 'm^2')
-pressure = force / area
-print(in_units_of(pressure, 'Pa'))  # 50.0
+# Size battery for 30-minute hover
+target_energy = Energy(80, 'kWh')
+battery = Battery.from_target_energy(
+    target_energy=target_energy,
+    target_voltage=Voltage(500, 'V'),
+    cell_capacity=Capacity(5000, 'mAh'),
+    cell_mass=Mass(70, 'g')
+)
 
-# Also works with BaseQuantity instances directly
-m = Mass(1, 'kg')
-print(in_units_of(m, 'g'))  # 1000.0
+# Calculate total mass (simplified - see examples/ for full MTOW solver)
+structure_mass = Mass(400, 'kg')
+avionics_mass = Mass(50, 'kg')
+total_mass = (payload.mass + structure_mass + avionics_mass +
+              propulsion.mass + battery.mass)
+
+# Performance analysis
+weight = Force(total_mass.magnitude * 9.81, 'N')
+atm_hot = Atmosphere(Length(2000, 'ft'), Temperature(20, 'K'))
+
+hover_power = propulsion.hover_electrical_power(weight, atmosphere=atm_hot)
+hover_time_hr = battery.energy_capacity.in_units_of('Wh') / hover_power.in_units_of('W')
+
+print(f"MTOW:             {total_mass.to('kg')}")
+print(f"Disk loading:     {propulsion.disk_loading(weight).to('Pa')}")
+print(f"Hover power:      {hover_power.to('kW')} (ISA+20, 2000 ft)")
+print(f"Hover endurance:  {hover_time_hr * 60:.1f} minutes")
 ```
 
-## Examples
+See `examples/vehicle_weight_calculator.py` for a complete implementation with MTOW fraction solver.
 
-The `examples/` directory contains runnable scripts demonstrating eVTOL analysis workflows.
+## Physics and Engineering Details
 
-### Vehicle Weight Calculator
+### Hover Power from Momentum Theory
 
-Calculates total vehicle weight (MTOW) and hover power requirements using MTOW fractions:
-
-```bash
-python examples/vehicle_weight_calculator.py
-```
-
-This comprehensive example demonstrates:
-- **MTOW fraction approach** - Structure and avionics are fractions of total MTOW
-- **Implicit weight solver** - Uses AeroSandbox optimizer to solve the circular dependency
-- **Component modeling** - Payload, Battery, Propulsion System (motors + propellers)
-- **Battery sizing** - Automatic cell configuration from target energy and voltage
-- **Propulsion analysis** - Disk loading, Figure of Merit, multi-rotor configuration
-- **Power chain calculation** - Ideal power → shaft power → electrical power
-- **Performance metrics** - Hover endurance, power margin analysis
-
-**Key insight:** When mass fractions are based on MTOW, adding battery mass increases MTOW, which increases structure/avionics, which further increases MTOW. This circular dependency is solved numerically using AeroSandbox's optimization framework:
+The toolkit uses momentum theory for hover power calculations:
 
 ```
-MTOW = payload + structure + avionics + propulsion + battery
-where: structure = MTOW × structure_fraction
-       avionics = MTOW × avionics_fraction
+Ideal Power:      P_ideal = T^(3/2) / sqrt(2 * ρ * A)
+Shaft Power:      P_shaft = P_ideal / (FM * η_installation)
+Electrical Power: P_elec = P_shaft / η_motor
+
+where:
+  T = thrust (equals weight in hover)
+  ρ = air density
+  A = total rotor disk area
+  FM = figure of merit (rotor efficiency, typically 0.6-0.8)
+  η_installation = installation efficiency (typically 0.95)
+  η_motor = motor efficiency (typically 0.90-0.95)
 ```
 
-**User-configurable parameters** (editable at top of script):
-- Structure fraction (default: 30% of MTOW)
-- Avionics fraction (default: 5% of MTOW)
-- Payload mass (default: 120 kg)
-- Target battery energy (default: 10 kWh)
-- Target battery voltage (default: 48 V)
-- Cell specifications (capacity: 5000 mAh, mass: 70 g)
-- Propulsion configuration (4 motors, 2 m propellers)
-- Motor efficiency (90%), Propeller Figure of Merit (0.70)
+### Battery Cell Configuration
 
-**Sample output:**
+Battery packs are configured as series/parallel strings:
+
 ```
-COMPONENT WEIGHT BREAKDOWN
-----------------------------------------
-  Payload        :   120.00 kg ( 42.4%)
-  Structure      :    84.90 kg ( 30.0%)
-  Avionics       :    14.15 kg (  5.0%)
-  Propulsion     :    20.00 kg (  7.1%)
-  Battery        :    43.95 kg ( 15.5%)
-----------------------------------------
-  MTOW           :   283.00 kg
+Voltage:  V_pack = N_series × V_cell
+Capacity: Q_pack = N_parallel × Q_cell
+Energy:   E_pack = V_pack × Q_pack
+Mass:     m_pack = (N_series × N_parallel × m_cell) × (1 + overhead)
 
-PROPULSION SYSTEM
-----------------------------------------
-  Number of rotors:  4
-  Total disk area:   12.57 m^2
-  Motor efficiency:  90%
-  Figure of Merit:   0.70
-  Disk loading:      220.9 N/m^2
-
-HOVER POWER REQUIREMENTS
-----------------------------------------
-  Vehicle weight:    2776.3 N
-  Ideal power:       26.36 kW
-  Shaft power:       39.64 kW (ideal / FM)
-  Electrical power:  44.05 kW (shaft / motor eff)
-
-HOVER ENDURANCE ESTIMATE
-----------------------------------------
-  Usable energy:     8000 Wh (80% of capacity)
-  Hover endurance:   10.9 minutes
+where overhead includes BMS, wiring, enclosure (typically 15%)
 ```
+
+### Atmospheric Effects
+
+Density decreases with altitude, affecting performance:
+
+```
+Power ∝ 1/sqrt(ρ)   (hover power increases at altitude)
+v_induced ∝ 1/sqrt(ρ) (downwash velocity increases)
+V_tip_max = M_limit × a(h)  (tip speed limit decreases)
+
+where:
+  a(h) = speed of sound at altitude h
+  M_limit = tip Mach limit (typically 0.7-0.9)
+```
+
+## Implemented Physical Quantities
+
+### SI Base Quantities
+- **Mass** - kg, g, lb, lbs, ton, tonne, oz
+- **Length** - m, cm, mm, ft, in, mi, km, nmi
+- **Time** - s, ms, min, hr, day
+- **Temperature** - K, degC, degF
+- **Current** - A, mA, uA, kA
+- **Substance** - mol, mmol, kmol
+- **Luminosity** - cd, lm
+
+### Derived Quantities
+- **Velocity** - m/s, km/h, mph, knots, ft/s
+- **AngularVelocity** - rad/s, rpm, deg/s
+- **Frequency** - Hz, kHz, MHz, mHz
+- **Area** - m^2, cm^2, ft^2, in^2
+- **Volume** - m^3, L, gal, ft^3
+- **Density** - kg/m^3, g/cm^3, lb/ft^3
+- **Force** - N, kN, lbf, kgf
+- **Pressure** - Pa, kPa, bar, psi, atm
+- **Power** - W, kW, MW, hp, bhp
+- **Energy** - J, kJ, MJ, Wh, kWh, MWh
+- **Moment** - N*m, ft*lbf, in*lbf
+- **Voltage** - V, mV, kV
+- **Capacity** - Ah, mAh, C
+
+Note: The system validates dimensionality rather than enforcing a strict whitelist. Any dimensionally-compatible unit string that Pint recognizes is accepted (e.g., 'N/m^2' for Pressure, 'kg*m/s^2' for Force).
+
+## Examples and Tutorials
+
+The `examples/` directory contains comprehensive demonstrations:
+
+### Vehicle Weight Calculator (`examples/vehicle_weight_calculator.py`)
+
+Complete eVTOL sizing workflow showing:
+- MTOW fraction methodology (structure and avionics as % of MTOW)
+- Implicit weight equation solver using AeroSandbox
+- Component mass breakdown
+- Battery sizing from energy requirements
+- Hover power and endurance calculations
+
+Run with: `python examples/vehicle_weight_calculator.py`
+
+### Jupyter Notebooks
+
+**Atmosphere Showcase** (`examples/atmosphere_showcase.ipynb`)
+- ISA atmosphere calculations
+- Temperature offset analysis (hot/cold days)
+- Altitude effects on performance
+- Pressure and density altitude
+- Integration with propulsion calculations
+- Mission energy analysis
+
+**Quantities Showcase** (`examples/quantities_showcase.ipynb`)
+- Units system demonstrations
+- Array operations
+- Cross-type arithmetic
+- Practical eVTOL calculations
 
 ## Architecture
-
-The package is organized as follows:
 
 ```
 evtol-tools/
 ├── evtoltools/                   # Main package
-│   ├── __init__.py
-│   ├── common/                   # Units system
-│   │   ├── __init__.py           # Public API exports
-│   │   ├── registry.py           # Singleton pint UnitRegistry
-│   │   ├── config.py             # Default and allowed units
+│   ├── common/                   # Units system and atmosphere
 │   │   ├── base.py               # BaseQuantity abstract class
-│   │   └── quantities/           # Physical quantity implementations
-│   │       ├── __init__.py
+│   │   ├── registry.py           # Pint UnitRegistry singleton
+│   │   ├── config.py             # Default and allowed units
+│   │   ├── atmosphere.py         # ISA atmosphere model
+│   │   └── quantities/           # 20+ physical quantity types
 │   │       ├── mass.py
 │   │       ├── length.py
-│   │       ├── time.py
 │   │       ├── velocity.py
-│   │       ├── force.py
 │   │       ├── power.py
-│   │       ├── energy.py
-│   │       └── ... (20 quantity types total)
+│   │       └── ... (and more)
 │   └── components/               # Vehicle component models
-│       ├── __init__.py
 │       ├── base.py               # BaseComponent class
 │       ├── payload.py            # Payload component
 │       ├── structure.py          # Structure component
 │       ├── avionics.py           # Avionics component
 │       ├── battery/              # Battery subsystem
-│       │   ├── __init__.py
 │       │   ├── battery.py        # Battery pack model
-│       │   └── chemistry.py      # Cell chemistry data
+│       │   └── chemistry.py      # Cell chemistry database
 │       └── propulsion/           # Propulsion subsystem
-│           ├── __init__.py
-│           ├── propulsion.py     # Propulsion system
 │           ├── motor.py          # Motor model
-│           └── propeller.py      # Propeller model
-├── examples/                     # Example scripts
-│   └── vehicle_weight_calculator.py
-├── tests/                        # Test suite
-│   ├── conftest.py              # Shared pytest fixtures
-│   ├── test_base.py             # BaseQuantity tests
-│   ├── test_mass.py             # Mass quantity tests
-│   ├── test_quantities_new.py   # Additional quantity tests
-│   ├── test_components_simple.py
-│   ├── test_battery.py
-│   ├── test_propulsion.py
-│   └── test_vehicle_weight_calculator.py
+│           ├── propeller.py      # Propeller/rotor model
+│           └── propulsion.py     # Integrated propulsion system
+├── examples/                     # Example scripts and notebooks
+│   ├── vehicle_weight_calculator.py
+│   ├── atmosphere_showcase.ipynb
+│   └── quantities_showcase.ipynb
+└── tests/                        # Comprehensive test suite
+    ├── test_base.py
+    ├── test_mass.py
+    ├── test_quantities_new.py
+    ├── test_battery.py
+    ├── test_propulsion.py
+    └── ... (and more)
 ```
-
-### Design Principles
-
-- **Immutable operations** - All operations return new instances for safety
-- **Extensible architecture** - Easy to add new quantity types
-- **Type safety** - Each physical quantity is a distinct class
-- **Validated units** - Dimensionality validation ensures unit compatibility
-- **Modular design** - Clean separation of concerns
-
-### Adding New Quantities
-
-To extend the units system with a new quantity type:
-
-1. Create a new file in `evtoltools/common/quantities/` (e.g., `velocity.py`)
-2. Define a class inheriting from `BaseQuantity`:
-   ```python
-   from ..base import BaseQuantity
-
-   class Velocity(BaseQuantity):
-       _quantity_type = 'velocity'
-       _dimensionality = '[length] / [time]'
-   ```
-3. Add default unit and suggested units list to `config.py`:
-   - `DEFAULT_UNITS` - The unit used when none is specified
-   - `ALLOWED_UNITS` - Suggested units shown in error messages (not enforced)
-4. Export the new class in `quantities/__init__.py` and `common/__init__.py`
 
 ## Testing
 
@@ -348,81 +422,131 @@ open htmlcov/index.html
 
 ### Test Organization
 
-The test suite is organized into multiple files covering different aspects of the codebase:
+- `tests/test_base.py` - BaseQuantity abstract class
+- `tests/test_mass.py` - Mass quantity comprehensive tests
+- `tests/test_quantities_new.py` - All other quantity types
+- `tests/test_battery.py` - Battery sizing and chemistry
+- `tests/test_propulsion.py` - Motors, propellers, propulsion systems
+- `tests/test_vehicle_weight_calculator.py` - Integration tests
 
-- `tests/test_base.py` - Tests for BaseQuantity abstract class functionality
-- `tests/test_mass.py` - Comprehensive tests for Mass quantity
-- `tests/test_quantities_new.py` - Tests for additional quantity types
-- `tests/test_components_simple.py` - Tests for basic component models
-- `tests/test_battery.py` - Battery pack and chemistry tests
-- `tests/test_propulsion.py` - Motor, propeller, and propulsion system tests
-- `tests/test_vehicle_weight_calculator.py` - Integration tests for weight calculator
-- `tests/conftest.py` - Shared pytest fixtures and test utilities
-
-### Test Coverage
-
-- Comprehensive coverage of:
-  - Unit construction and validation
-  - Unit conversions across all quantity types
-  - Arithmetic operations (addition, subtraction, multiplication, division)
-  - Comparison operations
-  - NumPy array operations
-  - Component initialization and behavior
-  - Battery sizing algorithms
-  - Propulsion system calculations
-  - Integration scenarios
+See `CLAUDE.md` for detailed pytest command reference.
 
 ## Development
 
-### Setup Development Environment
+### Adding New Physical Quantities
 
-```bash
-# Activate conda environment (if using conda)
-conda activate dev
+To extend the units system:
 
-# Install package in development mode with dev dependencies
-pip install -e ".[dev]"
-```
+1. Create a new file in `evtoltools/common/quantities/` (e.g., `acceleration.py`)
+2. Define a class inheriting from `BaseQuantity`:
+   ```python
+   from ..base import BaseQuantity
 
-### Running Tests During Development
+   class Acceleration(BaseQuantity):
+       _quantity_type = 'acceleration'
+       _dimensionality = '[length] / [time]^2'
+   ```
+3. Add default unit and suggested units to `config.py`:
+   ```python
+   DEFAULT_UNITS = {
+       'acceleration': 'm/s^2',
+       # ... existing entries
+   }
 
-```bash
-# Quick test run
-pytest -x  # Stop on first failure
+   ALLOWED_UNITS = {
+       'acceleration': ['m/s^2', 'ft/s^2', 'g'],
+       # ... existing entries
+   }
+   ```
+4. Export in `quantities/__init__.py` and `common/__init__.py`
 
-# Run specific test file
-pytest tests/test_mass.py
+### Design Principles
 
-# Run specific test
-pytest tests/test_mass.py::TestMassConstruction::test_default_unit
-
-# Run tests matching pattern
-pytest -k "test_addition"
-```
+- **Immutable operations** - All operations return new instances
+- **Type safety** - Each physical quantity is a distinct class
+- **Validated units** - Dimensionality validation prevents errors
+- **Modular design** - Clean separation of concerns
+- **Extensible architecture** - Easy to add new components and quantities
 
 ## Project Goals
 
-This toolkit is being developed to support research and analysis of eVTOL aircraft design trade-offs, with initial focus on:
+This toolkit is being developed to support research and analysis of eVTOL aircraft design trade-offs, with focus on:
 
-1. **Weight Analysis** - Component mass breakdown, weight fractions, center of gravity
-2. **Performance Metrics** - Propulsion efficiency, aerodynamic performance
-3. **Mission Optimization** - Range, endurance, payload capacity analysis
+1. **Weight Analysis** - Component mass breakdown, MTOW optimization, weight fractions
+2. **Performance Metrics** - Propulsion efficiency, hover power, disk loading
+3. **Mission Optimization** - Range, endurance, payload-energy trade-offs
+4. **Environmental Effects** - Altitude, temperature, hot day certification
 
-The modular architecture allows for incremental development of analysis capabilities while maintaining a solid foundation of validated, unit-aware calculations.
+The modular architecture enables incremental development while maintaining rigorous, unit-aware calculations throughout.
 
 ## Dependencies
 
 ### Required
 - `numpy>=1.20` - Array operations and numerical computing
 - `pint>=0.23` - Physical unit conversions and validation
-- `pybamm>=24.1` - Battery modeling and chemistry data
+- `ambiance>=0.3` - ISA atmosphere calculations
+- `pybamm>=24.1` - Battery modeling and chemistry database
 
 ### Examples
-- `aerosandbox` - Optimization framework (used in vehicle_weight_calculator.py example)
+- `aerosandbox` - Optimization framework (used in vehicle_weight_calculator.py)
+- `jupyter` - For running notebook examples
 
 ### Development
 - `pytest>=7.0` - Testing framework
 - `pytest-cov>=4.0` - Test coverage reporting
+
+## API Reference
+
+### Core Imports
+
+```python
+# Quantities
+from evtoltools.common import (
+    Mass, Length, Time, Temperature, Velocity, AngularVelocity,
+    Area, Volume, Density, Force, Pressure, Power, Energy,
+    Voltage, Current, Capacity, Moment, Frequency
+)
+
+# Atmosphere
+from evtoltools.common import (
+    Atmosphere, atmosphere_at_altitude, sea_level_atmosphere,
+    ISA_SEA_LEVEL_TEMPERATURE, ISA_SEA_LEVEL_PRESSURE,
+    ISA_SEA_LEVEL_DENSITY, ISA_SEA_LEVEL_SPEED_OF_SOUND
+)
+
+# Components
+from evtoltools.components import (
+    Payload, Battery, Motor, Propeller, PropulsionSystem,
+    Structure, Avionics
+)
+
+# Helpers
+from evtoltools.common import in_units_of  # Extract values from quantities
+```
+
+### Key Classes
+
+**Atmosphere(altitude, temperature_offset=None)**
+- `temperature` - Atmospheric temperature
+- `pressure` - Atmospheric pressure
+- `density` - Air density
+- `speed_of_sound` - Speed of sound
+- `from_pressure_altitude(pressure)` - Create from pressure
+- `from_density_altitude(density)` - Create from density
+
+**Battery(cells_series, cells_parallel, cell_capacity, cell_mass, chemistry)**
+- `nominal_voltage` - Pack nominal voltage
+- `energy_capacity` - Total energy (Wh)
+- `mass` - Total pack mass
+- `from_target_energy(...)` - Size from target energy
+- `from_target_voltage(...)` - Size from target voltage
+
+**PropulsionSystem(motors, propellers, num_units)**
+- `hover_power_ideal(thrust, atmosphere)` - Ideal hover power
+- `hover_shaft_power(thrust, atmosphere)` - Shaft power required
+- `hover_electrical_power(thrust, atmosphere)` - Electrical power
+- `disk_loading(thrust)` - Thrust per disk area
+- `induced_velocity(thrust, atmosphere)` - Downwash velocity
 
 ## License
 
@@ -434,4 +558,16 @@ The modular architecture allows for incremental development of analysis capabili
 
 ## Acknowledgments
 
-This project uses the excellent [Pint](https://github.com/hgrecco/pint) library for unit conversions, following best practices similar to [OpenMDAO](https://github.com/OpenMDAO/OpenMDAO) for handling physical quantities in engineering applications.
+This project uses:
+- [Pint](https://github.com/hgrecco/pint) - Physical unit handling
+- [Ambiance](https://github.com/aarondettmann/ambiance) - ISA atmosphere calculations
+- [PyBaMM](https://www.pybamm.org/) - Battery chemistry database
+- Design patterns inspired by [OpenMDAO](https://github.com/OpenMDAO/OpenMDAO)
+
+## Citation
+
+If you use eVTOL Tools in your research, please cite:
+
+```
+[Add citation information here]
+```
