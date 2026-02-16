@@ -36,5 +36,8 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 
+# Docs
+docs/_build/
+
 # Claude Code (user-specific)
 .claude/settings.local.json

@@ -18,6 +18,13 @@ dev = [
     "pytest-cov>=7.0",
     "ruff>=0.9",
 ]
+docs = [
+    "sphinx>=8.0",
+    "furo",
+    "myst-parser",
+    "sphinx-copybutton",
+    "sphinx-autodoc-typehints",
+]
 
 [build-system]
 requires = ["setuptools>=75.0"]
