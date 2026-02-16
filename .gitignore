@@ -1,0 +1,40 @@
+# User-specific files
+.claude
+CLAUDE.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+*.egg
+dist/
+build/
+*.so
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing / Coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Linting
+.mypy_cache/
+.ruff_cache/
+
+# Claude Code (user-specific)
+.claude/settings.local.json
