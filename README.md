@@ -1,4 +1,4 @@
-# evtol-tools
+# eVTOL Tools
 
 eVTOL vehicle configuration, sizing, and mission analysis tools.
 
