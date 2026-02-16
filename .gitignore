@@ -1,5 +1,8 @@
+# Private files and directories to ignore
+private/
+
 # User-specific files
-.claude
+.claude/
 CLAUDE.md
 
 # Python

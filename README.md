@@ -1,5 +1,9 @@
 # eVTOL Tools
 
+[![CI](https://github.com/matuscvengros/evtol-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/matuscvengros/evtol-tools/actions/workflows/ci.yml)
+[![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+
 Toolbox for eVTOL vehicle configuration, sizing, and mission analysis tools.
 
 ## Setup

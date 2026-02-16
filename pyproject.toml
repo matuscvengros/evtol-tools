@@ -3,6 +3,7 @@ name = "evtol-tools"
 version = "0.1.0"
 description = "eVTOL vehicle configuration, sizing, and mission analysis tools"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
     "RCAIDE-LEADS>=1.2",
