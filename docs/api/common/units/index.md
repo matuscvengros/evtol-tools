@@ -9,7 +9,7 @@ quantities
 registry
 ```
 
-```{automodule} evtoltools.common.units
-:members:
-:undoc-members:
+```{eval-rst}
+.. automodule:: evtoltools.common.units
+   :no-members:
 ```

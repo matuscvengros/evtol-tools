@@ -1,6 +1,7 @@
 # quantities
 
-```{automodule} evtoltools.common.units.quantities
-:members:
-:undoc-members:
+```{eval-rst}
+.. automodule:: evtoltools.common.units.quantities
+   :members:
+   :undoc-members:
 ```

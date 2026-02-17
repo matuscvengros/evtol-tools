@@ -6,7 +6,7 @@
 units/index
 ```
 
-```{automodule} evtoltools.common
-:members:
-:undoc-members:
+```{eval-rst}
+.. automodule:: evtoltools.common
+   :no-members:
 ```
