@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+#: Mapping of quantity type name to its SI unit string.
 SI_DEFAULTS: dict[str, str] = {
     "mass": "kg",
     "length": "m",
