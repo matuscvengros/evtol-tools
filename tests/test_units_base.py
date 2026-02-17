@@ -7,8 +7,8 @@ import pytest
 from pint import DimensionalityError
 from pint import Quantity as PintQuantity
 
-from evtol_tools.units.base import BaseQuantity
-from evtol_tools.units.quantities import Force, Length, Mass
+from evtoltools.common.units.base import BaseQuantity
+from evtoltools.common.units.quantities import Force, Length, Mass
 
 
 class TestConstruction:
@@ -25,7 +25,7 @@ class TestConstruction:
         assert m.units == "kilogram"
 
     def test_from_pint_quantity(self):
-        from evtol_tools.units.registry import Q_
+        from evtoltools.common.units.registry import Q_
 
         pq = Q_(100, "lb")
         m = Mass(pq)

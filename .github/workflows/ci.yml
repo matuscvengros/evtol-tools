@@ -20,4 +20,4 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: ruff check src/ tests/
       - run: ruff format --check src/ tests/
-      - run: pytest --cov=evtol_tools
+      - run: pytest --cov=evtoltools

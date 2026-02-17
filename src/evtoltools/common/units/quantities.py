@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from evtol_tools.units.base import BaseQuantity
+from evtoltools.common.units.base import BaseQuantity
 
 
 class Mass(BaseQuantity):

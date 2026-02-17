@@ -1,12 +1,12 @@
 # API Reference
 
 ```{toctree}
-:maxdepth: 2
+:maxdepth: 3
 
-units
+common/index
 ```
 
-```{automodule} evtol_tools
+```{automodule} evtoltools
 :members:
 :undoc-members:
 ```

@@ -7,8 +7,8 @@ from abc import ABC
 import numpy as np
 from pint import Quantity as PintQuantity
 
-from evtol_tools.units.config import SI_DEFAULTS
-from evtol_tools.units.registry import Q_
+from evtoltools.common.units.config import SI_DEFAULTS
+from evtoltools.common.units.registry import Q_
 
 
 class BaseQuantity(ABC):

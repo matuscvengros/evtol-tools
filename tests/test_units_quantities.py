@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 from pint import Quantity as PintQuantity
 
-from evtol_tools.units.config import SI_DEFAULTS
-from evtol_tools.units.quantities import (
+from evtoltools.common.units.config import SI_DEFAULTS
+from evtoltools.common.units.quantities import (
     AngularVelocity,
     Area,
     Capacity,
@@ -76,7 +76,7 @@ class TestDefaultSIUnit:
         q = cls(1.0)
         si_unit = SI_DEFAULTS[cls._quantity_type]
         # Verify the stored unit is the expected SI unit (pint may expand abbreviations)
-        from evtol_tools.units.registry import ureg
+        from evtoltools.common.units.registry import ureg
 
         expected_unit = str(ureg.parse_expression(si_unit).units)
         assert q.units == expected_unit
@@ -96,7 +96,7 @@ class TestConversion:
         assert isinstance(q_alt, cls)
 
         # Convert back to SI
-        from evtol_tools.units.registry import ureg
+        from evtoltools.common.units.registry import ureg
 
         si_unit = SI_DEFAULTS[cls._quantity_type]
         q_back = q_alt(str(ureg.parse_expression(si_unit).units))

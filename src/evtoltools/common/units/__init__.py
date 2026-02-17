@@ -1,6 +1,6 @@
 """Pint-based unit system with SI-default storage and on-demand conversion."""
 
-from evtol_tools.units.quantities import (
+from evtoltools.common.units.quantities import (
     AngularVelocity,
     Area,
     Capacity,
@@ -19,7 +19,7 @@ from evtol_tools.units.quantities import (
     Voltage,
     Volume,
 )
-from evtol_tools.units.registry import Q_, ureg
+from evtoltools.common.units.registry import Q_, ureg
 
 __all__ = [
     "Q_",
