@@ -1,4 +1,4 @@
-"""Pint UnitRegistry singleton for the evtol_tools package."""
+"""Pint UnitRegistry singleton for the evtoltools package."""
 
 from __future__ import annotations
 

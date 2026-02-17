@@ -1,5 +1,5 @@
 [project]
-name = "evtol-tools"
+name = "evtoltools"
 version = "0.1.0"
 description = "eVTOL vehicle configuration, sizing, and mission analysis tools"
 readme = "README.md"
