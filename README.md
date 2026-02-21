@@ -1,6 +1,6 @@
 # eVTOL Tools
 
-[![CI](https://github.com/matuscvengros/evtol-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/matuscvengros/evtol-tools/actions/workflows/ci.yml)
+[![Tests](https://github.com/matuscvengros/evtol-tools/actions/workflows/tests.yml/badge.svg)](https://github.com/matuscvengros/evtol-tools/actions/workflows/tests.yml)
 [![Python 3.12+](https://img.shields.io/badge/python-3.12%2B-blue)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 

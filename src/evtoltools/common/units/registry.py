@@ -6,7 +6,8 @@ from pint import UnitRegistry, set_application_registry
 
 #: Application-wide unit registry instance.
 ureg = UnitRegistry()
+ureg.formatter.default_format = "~"
 set_application_registry(ureg)
 
 #: Shorthand constructor for :class:`pint.Quantity`.
-Q_ = ureg.Quantity
+Q_ = ureg.Quantity  # type: ignore[reportInvalidTypeForm]

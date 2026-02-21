@@ -24,6 +24,7 @@ class BaseQuantity(ABC):
 
     def __init__(self, value: float | np.ndarray | PintQuantity, unit: str | None = None) -> None:
         si_unit = SI_DEFAULTS[self._quantity_type]
+        # Always changes to SI after initialisation
         if isinstance(value, PintQuantity):
             self._quantity = value.to(si_unit)
         else:
@@ -37,6 +38,13 @@ class BaseQuantity(ABC):
     def value(self) -> float | np.ndarray:
         """Raw numeric value in current units."""
         return self._quantity.magnitude
+
+    @property
+    def magnitude(self) -> float:
+        """Vector magnitude (L2 norm) of the quantity."""
+        if isinstance(self._quantity.magnitude, np.ndarray):
+            return float(np.linalg.norm(self._quantity.magnitude))
+        return float(self._quantity.magnitude)
 
     @property
     def units(self) -> str:

@@ -16,26 +16,26 @@ class TestConstruction:
 
     def test_explicit_unit_converts_to_si(self):
         m = Mass(1000, "lb")
-        assert m.units == "kilogram"
+        assert m.units == "kg"
         assert pytest.approx(m.value, rel=1e-4) == 453.5924
 
     def test_no_unit_assumes_si(self):
         m = Mass(500)
         assert m.value == 500.0
-        assert m.units == "kilogram"
+        assert m.units == "kg"
 
     def test_from_pint_quantity(self):
         from evtoltools.common.units.registry import Q_
 
         pq = Q_(100, "lb")
         m = Mass(pq)
-        assert m.units == "kilogram"
+        assert m.units == "kg"
         assert pytest.approx(m.value, rel=1e-4) == 45.3592
 
     def test_si_unit_no_conversion(self):
         m = Mass(25, "kg")
         assert m.value == 25.0
-        assert m.units == "kilogram"
+        assert m.units == "kg"
 
     def test_dimensionality_validation_rejects_wrong_units(self):
         with pytest.raises(DimensionalityError):
@@ -49,9 +49,38 @@ class TestConstruction:
     def test_numpy_array_with_conversion(self):
         arr = np.array([1.0, 2.0, 3.0])
         m = Mass(arr, "lb")
-        assert m.units == "kilogram"
+        assert m.units == "kg"
         expected = arr * 0.45359237
         np.testing.assert_allclose(m.value, expected, rtol=1e-4)
+
+
+class TestMagnitude:
+    """Tests for .magnitude (L2 norm) property."""
+
+    def test_scalar_returns_float(self):
+        m = Mass(10, "kg")
+        assert m.magnitude == 10.0
+        assert isinstance(m.magnitude, float)
+
+    def test_scalar_negative(self):
+        m = Mass(-5, "kg")
+        assert m.magnitude == -5.0
+
+    def test_array_returns_l2_norm(self):
+        f = Force(np.array([3.0, 4.0]), "N")
+        assert pytest.approx(f.magnitude) == 5.0
+
+    def test_array_3d(self):
+        f = Force(np.array([1.0, 2.0, 2.0]), "N")
+        assert pytest.approx(f.magnitude) == 3.0
+
+    def test_array_single_element(self):
+        m = Mass(np.array([7.0]), "kg")
+        assert pytest.approx(m.magnitude) == 7.0
+
+    def test_array_returns_float(self):
+        f = Force(np.array([3.0, 4.0]), "N")
+        assert isinstance(f.magnitude, float)
 
 
 class TestValueAndConversion:
@@ -96,7 +125,7 @@ class TestArithmetic:
         b = Mass(500, "lb")
         result = a + b
         assert isinstance(result, Mass)
-        assert result.units == "kilogram"
+        assert result.units == "kg"
         assert pytest.approx(result("lb").value, rel=1e-3) == 1500.0
 
     def test_sub_same_type(self):
@@ -203,11 +232,11 @@ class TestRepresentation:
 
     def test_repr(self):
         m = Mass(10, "kg")
-        assert repr(m) == "Mass(10, 'kilogram')"
+        assert repr(m) == "Mass(10, 'kg')"
 
     def test_str(self):
         m = Mass(10, "kg")
-        assert str(m) == "10 kilogram"
+        assert str(m) == "10 kg"
 
     def test_float(self):
         m = Mass(10, "kg")
